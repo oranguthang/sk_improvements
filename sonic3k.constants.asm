@@ -764,6 +764,9 @@ SSZ_MTZ_boss_laser_timer			ds.w 1	; counts down until a laser is fired in Sky Sa
 DMA_queue			ds.w $12*7		; stores all the VDP commands necessary to initiate a DMA transfer
 DMA_queue_slot			ds.l 1			; points to the next free slot on the queue
 
+VDP_Command_Buffer := DMA_queue
+VDP_Command_Buffer_Slot := DMA_queue_slot
+
 Normal_palette			ds.b $80
 Normal_palette_line_2 =		Normal_palette+$20	; $20 bytes
 Normal_palette_line_3 =		Normal_palette+$40	; $20 bytes
