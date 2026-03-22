@@ -22,6 +22,7 @@ The disassembly's built-in `FixBugs` flag is enabled, applying approximately 59 
 - [Make the Slots Bonus Game Rotate Smoothly](https://info.sonicretro.org/SCHG_How-to:Make_the_Slots_Bonus_Game_Rotate_Smoothly)
 - [Fix Tails' respawn speeds](https://info.sonicretro.org/SCHG_How-to:Fix_Tails%27_respawn_speeds)
 - [Add Flamewing's UltraDMAQueue to Sonic 3 & Knuckles](https://info.sonicretro.org/SCHG_How-to:Add_Flamewing%27s_UltraDMAQueue_to_Sonic_3_%26_Knuckles)
+- [Skip Score Tallies](https://info.sonicretro.org/SCHG_How-to:Skip_Score_Tallies)
 
 ## Disclaimer
 
