@@ -382,7 +382,7 @@ Camera_Y_diff			ds.w 1			; difference between Camera_Y_pos_copy and Camera_Y_pos
 Ring_start_addr_ROM		ds.l 1			; address in the ring layout of the first ring whose X position is >= camera X position - 8
 Ring_end_addr_ROM		ds.l 1			; address in the ring layout of the first ring whose X position is >= camera X position + 328
 Ring_start_addr_RAM		ds.w 1			; address in the ring status table of the first ring whose X position is >= camera X position - 8
-			ds.w 1				; unused
+Camera_pan_X			ds.w 1			; Extended Camera - how far the camera/view is panned to the left or right of the player
 Apparent_zone_and_act =		*
 Apparent_zone			ds.b 1			; always equal to actual zone
 Apparent_act			ds.b 1			; for example, after AIZ gets burnt, this indicates act 1 even though it's actually act 2
