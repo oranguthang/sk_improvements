@@ -23,6 +23,7 @@ The disassembly's built-in `FixBugs` flag is enabled, applying approximately 59 
 - [Fix Tails' respawn speeds](https://info.sonicretro.org/SCHG_How-to:Fix_Tails%27_respawn_speeds)
 - [Add Flamewing's UltraDMAQueue to Sonic 3 & Knuckles](https://info.sonicretro.org/SCHG_How-to:Add_Flamewing%27s_UltraDMAQueue_to_Sonic_3_%26_Knuckles)
 - [Skip Score Tallies](https://info.sonicretro.org/SCHG_How-to:Skip_Score_Tallies)
+- [Fix screen boundary spindash bug](https://info.sonicretro.org/SCHG_How-to:Fix_screen_boundary_spindash_bug)
 
 ## Disclaimer
 
