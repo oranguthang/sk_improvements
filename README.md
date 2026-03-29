@@ -27,6 +27,11 @@ The disassembly's built-in `FixBugs` flag is enabled, applying approximately 59 
 - [Add the Air Roll/Flying Spin Attack](https://info.sonicretro.org/SCHG_How-to:Add_the_Air_Roll/Flying_Spin_Attack)
 - [Retain Rings when returning at a Star Post](https://info.sonicretro.org/SCHG_How-to:Retain_Rings_when_returning_at_a_Star_Post)
 
+## Work in progress
+
+- [Create a Homing Attack from scratch](https://info.sonicretro.org/SCHG_How-to:Create_a_Homing_Attack_from_scratch) is currently `WIP` and lives on the `homing_attack` branch for now.
+- [Add Extended Camera to Sonic 1](https://info.sonicretro.org/SCHG_How-to:Add_Extended_Camera_to_Sonic_1) is currently `WIP` and lives on the `extended_camera` branch for now.
+
 ## Disclaimer
 
 Any and all content presented in this repository is presented for informational and educational purposes only.
