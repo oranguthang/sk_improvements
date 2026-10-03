@@ -22268,6 +22268,7 @@ Call_Player_AnglePos:
 ; Called if Sonic is airborne, but not in a ball (thus, probably not jumping)
 
 Sonic_MdAir:
+		bsr.w	AirRoll
 		bsr.w	Sonic_JumpHeight
 		bsr.w	Sonic_ChgJumpDir
 		bsr.w	Player_LevelBound
@@ -22325,6 +22326,7 @@ locret_11034:
 ;        Why they gave it a separate copy of the code, I don't know.
 
 Sonic_MdJump:
+		bsr.w	AirRoll
 		bsr.w	Sonic_JumpHeight
 		bsr.w	Sonic_ChgJumpDir
 		bsr.w	Player_LevelBound
@@ -22337,6 +22339,39 @@ loc_11056:
 		bsr.w	Player_JumpAngle
 		bsr.w	SonicKnux_DoLevelCollision
 		rts
+
+; ---------------------------------------------------------------------------
+; Subroutine to perform an Air Roll from the spring animation
+; ---------------------------------------------------------------------------
+
+; =============== S U B R O U T I N E =======================================
+
+
+AirRoll:
+		moveq	#button_A_mask|button_B_mask|button_C_mask,d0
+		and.b	(Ctrl_1_pressed_logical).w,d0	; is A, B, or C pressed?
+		beq.s	.return			; if not, branch
+
+		cmpi.b	#2,anim(a0)		; already in ball animation?
+		beq.s	.enable_ability		; if yes, enable ability directly
+
+		bset	#Status_Roll,status(a0)	; set rolling flag (Z=1 if was not set, Z=0 if already set)
+		move.b	#2,anim(a0)		; enter ball animation
+		bne.s	.was_rolling		; if Status_Roll was already set, skip hitbox/y_pos adjustment
+		move.b	#$E,y_radius(a0)	; set hitbox height to ball size
+		move.b	#7,x_radius(a0)		; set hitbox width to ball size
+		addq.w	#5,y_pos(a0)		; adjust Y for new height difference ($13-$E pixels)
+
+.was_rolling:
+		move.b	#1,jumping(a0)		; set jump state for next press
+		addq.l	#4,sp			; skip rest of caller this frame
+
+.enable_ability:
+		move.b	#1,jumping(a0)		; enable insta-shield/flight/glide on next JumpHeight call
+
+.return:
+		rts
+; End of function AirRoll
 
 ; ---------------------------------------------------------------------------
 ; Subroutine to make Sonic walk/run
@@ -23285,10 +23320,14 @@ Sonic_JumpHeight:
 loc_118D2:
 		cmp.w	y_vel(a0),d1		; is y speed greater than 4? (2 if underwater)
 		ble.w	Sonic_ShieldMoves	; if not, branch
+		move.b	(Ctrl_1_pressed_logical).w,d0
+		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0
+		bne.w	Sonic_ShieldMoves	; freshly pressed: check ability without cutting height
 		move.b	(Ctrl_1_held_logical).w,d0
-		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0	; are buttons A, B or C being pressed?
-		bne.s	locret_118E8		; if yes, branch
+		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0	; are buttons A, B or C being held?
+		bne.s	locret_118E8		; if yes, branch (no cut)
 		move.w	d1,y_vel(a0)		; cap jump height
+		bra.w	Sonic_ShieldMoves	; then check for ability
 
 locret_118E8:
 		rts
@@ -27483,6 +27522,7 @@ locret_147B6:
 Tails_Stand_Freespace:
 		tst.b	double_jump_flag(a0)
 		bne.s	Tails_FlyingSwimming
+		bsr.w	AirRoll
 		bsr.w	Tails_JumpHeight
 		bsr.w	Tails_InputAcceleration_Freespace
 		bsr.w	Tails_Check_Screen_Boundaries
@@ -27693,6 +27733,7 @@ locret_149A0:
 ; ---------------------------------------------------------------------------
 
 Tails_Spin_Freespace:
+		bsr.w	AirRoll
 		tst.b	(Flying_carrying_Sonic_flag).w
 		beq.s	loc_149BA
 		lea	(Player_1).w,a1
@@ -28521,10 +28562,14 @@ Tails_JumpHeight:
 loc_150F0:
 		cmp.w	y_vel(a0),d1
 		ble.s	Tails_Test_For_Flight
+		move.b	(Ctrl_1_pressed_logical).w,d0
+		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0
+		bne.w	Tails_Test_For_Flight	; freshly pressed: check ability without cutting height
 		move.b	(Ctrl_2_held_logical).w,d0
 		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0
 		bne.s	locret_15104
 		move.w	d1,y_vel(a0)
+		bra.w	Tails_Test_For_Flight	; then check for ability
 
 locret_15104:
 		rts
@@ -30587,6 +30632,7 @@ locret_1684A:
 Knux_Stand_Freespace:
 		tst.b	double_jump_flag(a0)
 		bne.s	Knux_Glide_Freespace
+		bsr.w	AirRoll
 		bsr.w	Knux_JumpHeight
 		bsr.w	Knux_ChgJumpDir
 		bsr.w	Player_LevelBound
@@ -31685,6 +31731,7 @@ locret_17116:
 ; ---------------------------------------------------------------------------
 
 Knux_Spin_Freespace:
+		bsr.w	AirRoll
 		bsr.w	Knux_JumpHeight
 		bsr.w	Knux_ChgJumpDir
 		bsr.w	Player_LevelBound
@@ -32436,10 +32483,14 @@ Knux_JumpHeight:
 loc_17800:
 		cmp.w	y_vel(a0),d1
 		ble.w	Knux_Test_For_Glide
+		move.b	(Ctrl_1_pressed_logical).w,d0
+		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0
+		bne.w	Knux_Test_For_Glide	; freshly pressed: check ability without cutting height
 		move.b	(Ctrl_1_held_logical).w,d0
 		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0
 		bne.s	locret_17816
 		move.w	d1,y_vel(a0)
+		bra.w	Knux_Test_For_Glide	; then check for ability
 
 locret_17816:
 		rts
@@ -32624,7 +32675,7 @@ locret_17A1A:
 ; ---------------------------------------------------------------------------
 
 loc_17A1C:
-		bsr.w	CheckRightWallDist
+		jsr	(CheckRightWallDist).l
 		tst.w	d1
 		bpl.s	locret_17A34
 		add.w	d1,x_pos(a0)
