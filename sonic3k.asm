@@ -98203,7 +98203,6 @@ Slots_RenderLayout:
 		bsr.w	sub_4B592
 		lea	(Chunk_table+$7800).l,a1
 		move.b	(Stat_table).w,d0
-		andi.b	#$FC,d0
 		jsr	(GetSineCosine).l
 		move.w	d0,d4
 		move.w	d1,d5
@@ -99366,7 +99365,6 @@ loc_4BF62:
 
 loc_4BF9A:
 		move.b	(Stat_table).w,d0
-		andi.b	#$FC,d0
 		jsr	(GetSineCosine).l
 		lea	(Player_1).w,a1
 		move.w	#$460,d2
