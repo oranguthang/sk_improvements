@@ -26657,6 +26657,12 @@ loc_13CD2:
 		bne.s	loc_13D42
 		or.w	d0,d1
 		bne.s	loc_13D42
+		btst	#Status_Underwater,status(a0)	; is Tails underwater?
+		bne.s	.underwater			; if so, branch
+		move.w	#$600,(Max_speed_P2).w		; set Tails' top speed
+		move.w	#$C,(Acceleration_P2).w		; set Tails' acceleration
+		move.w	#$80,(Deceleration_P2).w	; set Tails' deceleration
+.underwater:
 		cmpi.b	#6,(Player_1+routine).w
 		bhs.s	loc_13D42
 		move.w	#6,(Tails_CPU_routine).w
