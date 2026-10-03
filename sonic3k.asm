@@ -23365,8 +23365,6 @@ loc_1182E:
 		clr.b	stick_to_convex(a0)
 		move.w	#sfx_Jump,d0
 		jsr	(Play_SFX).l
-		move.b	default_y_radius(a0),y_radius(a0)
-		move.b	default_x_radius(a0),x_radius(a0)
 		btst	#Status_Roll,status(a0)
 		bne.s	locret_118B2
 		move.b	#$E,y_radius(a0)
@@ -28589,8 +28587,6 @@ loc_1504C:
 		clr.b	stick_to_convex(a0)
 		move.w	#sfx_Jump,d0
 		jsr	(Play_SFX).l
-		move.b	default_y_radius(a0),y_radius(a0)
-		move.b	default_x_radius(a0),x_radius(a0)
 		btst	#Status_Roll,status(a0)
 		bne.s	locret_150D0
 		move.b	#$E,y_radius(a0)
@@ -32498,8 +32494,6 @@ loc_1775C:
 		clr.b	stick_to_convex(a0)
 		move.w	#sfx_Jump,d0
 		jsr	(Play_SFX).l
-		move.b	default_y_radius(a0),y_radius(a0)
-		move.b	default_x_radius(a0),x_radius(a0)
 		btst	#Status_Roll,status(a0)
 		bne.s	locret_177E0
 		move.b	#$E,y_radius(a0)
