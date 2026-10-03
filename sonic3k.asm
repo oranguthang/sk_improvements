@@ -62565,6 +62565,18 @@ Obj_LevelResultsWait:
 ; ---------------------------------------------------------------------------
 
 loc_2DC5C:
+		moveq	#button_A_mask|button_B_mask|button_C_mask,d0
+		and.b	(Ctrl_1_held).w,d0		; is button A, B, or C held?
+		beq.s	.normalTally			; if not, tick down score tally normally
+
+		move.w	(Time_bonus_countdown).w,d0	; add entire remaining time bonus to d0
+		add.w	(Ring_bonus_countdown).w,d0	; add entire remaining ring bonus to d0
+		clr.w	(Time_bonus_countdown).w	; clear remaining time bonus
+		clr.w	(Ring_bonus_countdown).w	; clear remaining ring bonus
+		jsr	(HUD_AddToScore).l		; add up the points stored in d0
+		moveq	#0,d0				; set remaining bonus to 0 so tally is complete
+		bra.s	loc_2DC7E			; skip regular tally logic
+.normalTally:
 		moveq	#0,d0
 		tst.w	(Time_bonus_countdown).w
 		beq.s	loc_2DC6E
