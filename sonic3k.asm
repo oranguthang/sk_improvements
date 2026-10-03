@@ -35676,6 +35676,8 @@ loc_1A75C:
 loc_1A79C:
 		tst.b	(Ring_spill_anim_counter).w
 		beq.s	loc_1A7E4
+		cmpi.w	#$FF00,($FFFFEE18).w		; is vertical wrapping enabled?
+		beq.w	loc_1A7B0			; if so, branch
 		move.w	(Camera_max_Y_pos).w,d0
 		addi.w	#$E0,d0
 		cmp.w	y_pos(a0),d0
