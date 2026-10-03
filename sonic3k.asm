@@ -23644,6 +23644,14 @@ loc_11CDC:
 		move.b	#0,anim(a6)
 		moveq	#signextendB(sfx_Dash),d0
 		jsr	(Play_SFX).l
+		move.b	angle(a0),d0	; screen boundary spindash bug fix
+		jsr	(GetSineCosine).l
+		muls.w	ground_vel(a0),d1
+		asr.l	#8,d1
+		move.w	d1,x_vel(a0)
+		muls.w	ground_vel(a0),d0
+		asr.l	#8,d0
+		move.w	d0,y_vel(a0)
 		bra.s	loc_11D5E
 ; ---------------------------------------------------------------------------
 word_11CF2:
@@ -28695,6 +28703,14 @@ loc_152F8:
 		move.b	#0,anim(a6)
 		moveq	#signextendB(sfx_Dash),d0
 		jsr	(Play_SFX).l
+		move.b	angle(a0),d0	; screen boundary spindash bug fix
+		jsr	(GetSineCosine).l
+		muls.w	ground_vel(a0),d1
+		asr.l	#8,d1
+		move.w	d1,x_vel(a0)
+		muls.w	ground_vel(a0),d0
+		asr.l	#8,d0
+		move.w	d0,y_vel(a0)
 		bra.s	loc_1537A
 ; ---------------------------------------------------------------------------
 word_1530E:
