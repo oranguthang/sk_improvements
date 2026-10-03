@@ -35605,7 +35605,6 @@ loc_1A6B6:
 		move.w	#$180,priority(a1)
 		move.b	#$47,collision_flags(a1)
 		move.b	#8,width_pixels(a1)
-		move.b	#-1,(Ring_spill_anim_counter).w
 		tst.w	d4
 		bmi.s	loc_1A728
 		move.w	d4,d0
@@ -35638,6 +35637,9 @@ loc_1A728:
 		dbf	d5,loc_1A6AE
 
 loc_1A738:
+		moveq   #-1,d0							; Move #-1 to d0
+		move.b  d0,height_pixels(a0)			; Move d0 to new timer
+		move.b  d0,(Ring_spill_anim_counter).w	; Move d0 to old timer (for animated purposes)
 		move.w	#signextendB(sfx_RingLoss),d0
 		jsr	(Play_SFX).l
 		move.w	#0,(Ring_count).w
@@ -35674,8 +35676,6 @@ loc_1A75C:
 		neg.w	y_vel(a0)
 
 loc_1A79C:
-		tst.b	(Ring_spill_anim_counter).w
-		beq.s	loc_1A7E4
 		cmpi.w	#$FF00,($FFFFEE18).w		; is vertical wrapping enabled?
 		beq.w	loc_1A7B0			; if so, branch
 		move.w	(Camera_max_Y_pos).w,d0
@@ -35684,10 +35684,16 @@ loc_1A79C:
 		blo.s	loc_1A7E4
 
 loc_1A7B0:
+		subq.b  #1,height_pixels(a0)		; Subtract 1
+		beq.w   Delete_Current_Sprite		; If 0, delete
 		jsr	(Add_SpriteToCollisionResponseList).l
 		move.w	(Level_repeat_offset).w,d0
 		sub.w	d0,x_pos(a0)
-		bra.w	Draw_Sprite
+		btst	#0,height_pixels(a0)		; test first bit for flash effect
+		beq.w	Draw_Sprite					; if bit is 0, display ring
+		cmpi.b	#80,height_pixels(a0)		; rings flash during last 80 frames
+		bhi.w	Draw_Sprite					; if timer > 80, stay visible
+		rts
 ; ---------------------------------------------------------------------------
 
 loc_1A7C2:
@@ -35770,6 +35776,7 @@ loc_1A88C:
 		move.l	#Obj_Bouncing_Ring,(a0)		; If not, change object
 		move.b	#2,routine(a0)
 		move.b	#-1,(Ring_spill_anim_counter).w
+		move.b	#-1,height_pixels(a0)		; Move #$FF to new timer
 
 Obj_Attracted_RingAnimate:
 		subq.b	#1,anim_frame_timer(a0)
@@ -187251,6 +187258,7 @@ loc_89D44:
 		jsr	SetUp_ObjAttributes(pc)
 		move.l	#Obj_Bouncing_Ring,(a0)
 		move.b	#-1,(Ring_spill_anim_counter).w
+		move.b  #-1,height_pixels(a0)		; Move #$FF to new timer
 		move.b	#8,y_radius(a0)
 		move.b	#8,x_radius(a0)
 		move.b	#$84,render_flags(a0)
