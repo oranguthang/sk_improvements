@@ -35543,7 +35543,7 @@ Obj_Bouncing_Ring:
 		jmp	Bouncing_Ring_Index(pc,d1.w)
 ; ---------------------------------------------------------------------------
 Bouncing_Ring_Index:
-		dc.w loc_1A67A-Bouncing_Ring_Index
+		dc.w loc_1A68C-Bouncing_Ring_Index
 		dc.w loc_1A75C-Bouncing_Ring_Index
 		dc.w loc_1A7C2-Bouncing_Ring_Index
 		dc.w loc_1A7D6-Bouncing_Ring_Index
@@ -35557,18 +35557,12 @@ Obj_Bouncing_Ring_Reverse_Gravity:
 		jmp	Bouncing_Ring_Reverse_Gravity_Index(pc,d1.w)
 ; ---------------------------------------------------------------------------
 Bouncing_Ring_Reverse_Gravity_Index:
-		dc.w loc_1A67A-Bouncing_Ring_Reverse_Gravity_Index
+		dc.w loc_1A68C-Bouncing_Ring_Reverse_Gravity_Index
 		dc.w loc_1A7E8-Bouncing_Ring_Reverse_Gravity_Index
 		dc.w loc_1A7C2-Bouncing_Ring_Reverse_Gravity_Index
 		dc.w loc_1A7D6-Bouncing_Ring_Reverse_Gravity_Index
 		dc.w loc_1A7E4-Bouncing_Ring_Reverse_Gravity_Index
 ; ---------------------------------------------------------------------------
-
-loc_1A67A:
-		move.l	#Obj_Bouncing_Ring,d6
-		tst.b	(Reverse_gravity_flag).w
-		beq.s	loc_1A68C
-		move.l	#Obj_Bouncing_Ring_Reverse_Gravity,d6
 
 loc_1A68C:
 		movea.l	a0,a1
@@ -35595,7 +35589,11 @@ loc_1A6AE:
 		bne.w	loc_1A738
 
 loc_1A6B6:
-		move.l	d6,(a1)
+		move.l	#Obj_Bouncing_Ring,(a1)
+		tst.b	(Reverse_gravity_flag).w
+		beq.s	.notreverse
+		move.l	#Obj_Bouncing_Ring_Reverse_Gravity,(a1)
+.notreverse:
 		addq.b	#2,routine(a1)
 		move.b	#8,y_radius(a1)
 		move.b	#8,x_radius(a1)
@@ -35614,6 +35612,14 @@ loc_1A6B6:
 		jsr	(GetSineCosine).l
 		move.w	d4,d2
 		lsr.w	#8,d2
+		tst.b	(Water_flag).w		; Does the level have water?
+		beq.s	.skiphalvingvel		; If not, branch and skip underwater checks
+		move.w	(Water_level).w,d6	; Move water level to d6
+		cmp.w	y_pos(a0),d6		; Is the ring object underneath the water level?
+		bgt.s	.skiphalvingvel		; If not, branch and skip underwater commands
+		asr.w	d0			; Half d0. Makes the ring's x_vel bounce to the left/right slower
+		asr.w	d1			; Half d1. Makes the ring's y_vel bounce up/down slower
+.skiphalvingvel:
 		asl.w	d2,d0
 		asl.w	d2,d1
 		move.w	d0,d2
@@ -35644,6 +35650,13 @@ loc_1A75C:
 		move.b	(Ring_spill_anim_frame).w,mapping_frame(a0)
 		bsr.w	MoveSprite2
 		addi.w	#$18,y_vel(a0)
+		tst.b	(Water_flag).w		; Does the level have water?
+		beq.s	.skiphalvinggrav	; If not, branch and skip underwater checks
+		move.w	(Water_level).w,d6	; Move water level to d6
+		cmp.w	y_pos(a0),d6		; Is the ring object underneath the water level?
+		bgt.s	.skiphalvinggrav	; If not, branch and skip underwater commands
+		subi.w	#$E,$1A(a0)		; Reduce gravity by $E ($18-$E=$A), giving the underwater effect
+.skiphalvinggrav:
 		bmi.s	loc_1A7B0
 		move.b	(V_int_run_count+3).w,d0
 		add.b	d7,d0
@@ -35695,6 +35708,13 @@ loc_1A7E8:
 		move.b	(Ring_spill_anim_frame).w,mapping_frame(a0)
 		bsr.w	MoveSprite_TestGravity2
 		addi.w	#$18,y_vel(a0)
+		tst.b	(Water_flag).w		; Does the level have water?
+		beq.s	.skiphalvingrevgrav	; If not, branch and skip underwater checks
+		move.w	(Water_level).w,d6	; Move water level to d6
+		cmp.w	y_pos(a0),d6		; Is the ring object underneath the water level?
+		bgt.s	.skiphalvingrevgrav	; If not, branch and skip underwater commands
+		subi.w	#$E,$1A(a0)		; Reduce gravity by $E ($18-$E=$A), giving the underwater effect
+.skiphalvingrevgrav:
 		bmi.s	loc_1A83C
 		move.b	(V_int_run_count+3).w,d0
 		add.b	d7,d0
