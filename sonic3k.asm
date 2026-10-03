@@ -23124,8 +23124,6 @@ Sonic_ChgJumpDir:
 		move.w	Max_speed-Max_speed(a4),d6
 		move.w	Acceleration-Max_speed(a4),d5
 		asl.w	#1,d5
-		btst	#Status_RollJump,status(a0)		; did Sonic jump from rolling?
-		bne.s	Sonic_Jump_ResetScr	; if yes, branch to skip midair control
 		move.w	x_vel(a0),d0
 		btst	#button_left,(Ctrl_1_held_logical).w
 		beq.s	loc_11682	; if not holding left, branch
@@ -23370,7 +23368,7 @@ loc_1182E:
 		move.b	default_y_radius(a0),y_radius(a0)
 		move.b	default_x_radius(a0),x_radius(a0)
 		btst	#Status_Roll,status(a0)
-		bne.s	Sonic_RollJump
+		bne.s	locret_118B2
 		move.b	#$E,y_radius(a0)
 		move.b	#7,x_radius(a0)
 		move.b	#2,anim(a0)	; use "jumping" animation
@@ -23386,11 +23384,6 @@ loc_118AE:
 		sub.w	d0,y_pos(a0)
 
 locret_118B2:
-		rts
-; ---------------------------------------------------------------------------
-
-Sonic_RollJump:
-		bset	#Status_RollJump,status(a0)	; set the rolling+jumping flag
 		rts
 ; End of function Sonic_Jump
 
@@ -28371,8 +28364,6 @@ Tails_InputAcceleration_Freespace:
 		move.w	Max_speed_P2-Max_speed_P2(a4),d6
 		move.w	Acceleration_P2-Max_speed_P2(a4),d5
 		asl.w	#1,d5
-		btst	#Status_RollJump,status(a0)
-		bne.s	loc_14ECC
 		move.w	x_vel(a0),d0
 		btst	#button_left,(Ctrl_2_held_logical).w
 		beq.s	loc_14EAC
@@ -28601,7 +28592,7 @@ loc_1504C:
 		move.b	default_y_radius(a0),y_radius(a0)
 		move.b	default_x_radius(a0),x_radius(a0)
 		btst	#Status_Roll,status(a0)
-		bne.s	loc_150D2
+		bne.s	locret_150D0
 		move.b	#$E,y_radius(a0)
 		move.b	#7,x_radius(a0)
 		move.b	#2,anim(a0)
@@ -28617,11 +28608,6 @@ loc_150CC:
 		sub.w	d0,y_pos(a0)
 
 locret_150D0:
-		rts
-; ---------------------------------------------------------------------------
-
-loc_150D2:
-		bset	#Status_RollJump,status(a0)
 		rts
 ; End of function Tails_Jump
 
@@ -32399,8 +32385,6 @@ Knux_ChgJumpDir:
 		move.w	Max_speed-Max_speed(a4),d6
 		move.w	Acceleration-Max_speed(a4),d5
 		asl.w	#1,d5
-		btst	#Status_RollJump,status(a0)
-		bne.s	loc_176D4
 		move.w	x_vel(a0),d0
 		btst	#button_left,(Ctrl_1_held_logical).w
 		beq.s	loc_176B4
@@ -32517,7 +32501,7 @@ loc_1775C:
 		move.b	default_y_radius(a0),y_radius(a0)
 		move.b	default_x_radius(a0),x_radius(a0)
 		btst	#Status_Roll,status(a0)
-		bne.s	loc_177E2
+		bne.s	locret_177E0
 		move.b	#$E,y_radius(a0)
 		move.b	#7,x_radius(a0)
 		move.b	#2,anim(a0)
@@ -32533,11 +32517,6 @@ loc_177DC:
 		sub.w	d0,y_pos(a0)
 
 locret_177E0:
-		rts
-; ---------------------------------------------------------------------------
-
-loc_177E2:
-		bset	#Status_RollJump,status(a0)
 		rts
 ; End of function Knux_Jump
 
