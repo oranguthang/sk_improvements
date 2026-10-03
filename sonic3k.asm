@@ -358,6 +358,7 @@ SegaHeadersText:
 BlueSpheresStartup:
 		bsr.s	Test_Checksum
 		move.b	d4,(Blue_spheres_header_flag).w
+		jsr	(InitDMAQueue).l
 		bsr.w	Init_VDP
 		bsr.w	SndDrvInit
 		bsr.w	Init_Controllers
@@ -424,6 +425,7 @@ SonicAndKnucklesStartup:
 		bsr.s	Test_Checksum
 		move.w	d1,(SK_alone_flag).w
 		bsr.w	DetectPAL
+		jsr	(InitDMAQueue).l
 		bsr.w	Init_VDP
 		bsr.w	SndDrvInit
 		bsr.w	Init_Controllers
@@ -476,6 +478,7 @@ JumpToSegaScreen:
 
 ChecksumError2:
 		move.l	d1,-(sp)
+		jsr	(InitDMAQueue).l
 		bsr.w	Init_VDP
 		move.l	(sp)+,d1
 
@@ -1681,114 +1684,7 @@ Plane_Map_To_VRAM_2:
 		rts
 ; End of function Plane_Map_To_VRAM_2
 
-; ---------------------------------------------------------------------------
-; Adds art to the DMA queue
-; Inputs:
-; d1 = source address
-; d2 = destination VRAM address
-; d3 = number of words to transfer
-; ---------------------------------------------------------------------------
-
-; =============== S U B R O U T I N E =======================================
-
-
-Add_To_DMA_Queue:
-	if Sonic3_Complete
-		; Detect if transfer crosses 128KB boundary
-		lsr.l	#1,d1
-		move.w	d3,d0
-		neg.w	d0
-		sub.w	d1,d0
-		bcc.s	.transfer
-		; Do first transfer
-		movem.l	d1-d3,-(sp)
-		add.w	d0,d3		; d3 = words remaining in 128KB "bank"
-		bsr.s	.transfer
-		movem.l	(sp)+,d1-d3
-		; Get second transfer's source, destination, and length
-		moveq	#0,d0
-		sub.w	d1,d0
-		sub.w	d0,d3
-		add.l	d0,d1
-		add.w	d0,d2
-		add.w	d0,d2
-		; Do second transfer
-	.transfer:
-	endif
-
-		movea.l	(DMA_queue_slot).w,a1
-		cmpa.w	#DMA_queue_slot,a1	; is the queue full?
-		beq.s	Add_To_DMA_Queue_Done	; if it is, return
-
-		move.w	#$9300,d0
-		move.b	d3,d0
-		move.w	d0,(a1)+	; command to specify transfer length in words & $00FF
-
-		move.w	#$9400,d0
-		lsr.w	#8,d3
-		move.b	d3,d0
-		move.w	d0,(a1)+	; command to specify transfer length in words & $FF00
-
-		move.w	#$9500,d0
-	if Sonic3_Complete=0
-		lsr.l	#1,d1
-	endif
-		move.b	d1,d0
-		move.w	d0,(a1)+	; command to specify transfer source & $0001FE
-
-		move.w	#$9600,d0
-		lsr.l	#8,d1
-		move.b	d1,d0
-		move.w	d0,(a1)+	; command to specify transfer source & $01FE00
-
-		move.w	#$9700,d0
-		lsr.l	#8,d1
-		andi.b	#$7F,d1		; this instruction safely allows source to be in RAM; S2's lacks this
-		move.b	d1,d0
-		move.w	d0,(a1)+	; command to specify transfer source & $FE0000
-
-		andi.l	#$FFFF,d2
-		lsl.l	#2,d2
-		lsr.w	#2,d2
-		swap	d2
-		ori.l	#vdpComm($0000,VRAM,DMA),d2
-		move.l	d2,(a1)+	; command to specify transfer destination and begin DMA
-
-		move.l	a1,(DMA_queue_slot).w	; set new free slot address
-		cmpa.w	#DMA_queue_slot,a1	; has the end of the queue been reached?
-		beq.s	Add_To_DMA_Queue_Done	; if it has, branch
-		move.w	#0,(a1)	; place stop token at the end of the queue
-
-Add_To_DMA_Queue_Done:
-		rts
-; End of function Add_To_DMA_Queue
-
-
-; =============== S U B R O U T I N E =======================================
-
-
-Process_DMA_Queue:
-		lea	(VDP_control_port).l,a5
-		lea	(DMA_queue).w,a1
-
-.loop:
-		move.w	(a1)+,d0	; has a stop token been encountered?
-		beq.s	.stop	; if it has, branch
-		move.w	d0,(a5)
-		move.w	(a1)+,(a5)
-		move.w	(a1)+,(a5)
-		move.w	(a1)+,(a5)
-		move.w	(a1)+,(a5)
-		move.w	(a1)+,(a5)
-		move.w	(a1)+,(a5)
-		cmpa.w	#DMA_queue_slot,a1	; has the end of the queue been reached?
-		bne.s	.loop	; if not, loop
-
-.stop:
-		move.w	#0,(DMA_queue).w
-		move.l	#DMA_queue,(DMA_queue_slot).w
-		rts
-; End of function Process_DMA_Queue
+		include "DMA-Queue.asm"
 
 ; ---------------------------------------------------------------------------
 ; Nemesis decompression subroutine, decompresses art directly to VRAM
@@ -5462,8 +5358,7 @@ Title_Screen:
 		move.w	d0,(Debug_mode_cheat_counter).w
 		move.b	d0,(Blue_spheres_stage_flag).w
 		move.w	#(6*60)-1,(Demo_timer).w		; Wait on title screen for six seconds
-		clr.w	(DMA_queue).w
-		move.l	#DMA_queue,(DMA_queue_slot).w	; Clear DMA queue
+		ResetDMAQueue
 	if 0
 		; Sonic 2 Beta 4 reveals that these were the original instructions.
 		; The original source code may have been able to produce debug builds with this enabled.
@@ -7687,8 +7582,7 @@ loc_6182:
 
 loc_61BE:
 		move.w	(H_int_counter_command).w,(a6)
-		clr.w	(DMA_queue).w
-		move.l	#DMA_queue,(DMA_queue_slot).w
+		ResetDMAQueue
 		moveq	#PalID_SonicTails,d0
 		cmpi.w	#3,(Player_mode).w
 		bne.s	loc_61DA
@@ -8034,8 +7928,7 @@ loc_6696:
 		move.w	#$100,(Z80_bus_request).l	; stop the Z80
 		bsr.w	Poll_Controllers
 		startZ80
-		move.w	#0,(DMA_queue).w
-		move.l	#DMA_queue,(DMA_queue_slot).w
+		ResetDMAQueue
 		lea	(Sprite_table_input).w,a5
 
 loc_66CA:
@@ -9943,8 +9836,7 @@ LevelSelect_S2Options:
 		move.w	#$8B00,(a6)
 		clearRAM	Sprite_table_input,(Sprite_table_input_end-Sprite_table_input)
 		clearRAM	Object_RAM,(Kos_decomp_buffer-Object_RAM)
-		clr.w	(DMA_queue).w
-		move.l	#DMA_queue,(DMA_queue_slot).w
+		ResetDMAQueue
 		move.l	#vdpComm(tiles_to_bytes($010),VRAM,WRITE),(VDP_control_port).l
 		lea	(ArtNem_S22POptions).l,a0
 		bsr.w	Nem_Decomp
@@ -10645,8 +10537,7 @@ SpecialStage:
 		move.l	d0,(LRZ_rocks_addr_front).w
 		move.l	d0,(LRZ_rocks_addr_back).w
 		jsr	(Init_SpriteTable).l
-		clr.w	(DMA_queue).w
-		move.l	#DMA_queue,(DMA_queue_slot).w
+		ResetDMAQueue
 		lea	(Pal_SStage_Main).l,a1
 		lea	(Target_palette).w,a2
 		move.w	#bytesToWcnt(Target_palette_end-Target_palette),d0
@@ -13495,8 +13386,7 @@ Competition_Menu:
 		jsr	sub_C02A(pc)
 		clearRAM	Sprite_table_input,(Sprite_table_input_end-Sprite_table_input)
 		clearRAM	Object_RAM,(Kos_decomp_buffer-Object_RAM)
-		clr.w	(DMA_queue).w
-		move.l	#DMA_queue,(DMA_queue_slot).w
+		ResetDMAQueue
 		clr.w	(Level_frame_counter).w
 		cmpi.b	#3,(Competition_menu_selection).w
 		blo.s	loc_A8DC
@@ -13757,8 +13647,7 @@ Competition_LevelSelect:
 		jsr	sub_C02A(pc)
 		clearRAM	Sprite_table_input,(Sprite_table_input_end-Sprite_table_input)
 		clearRAM	Object_RAM,(Kos_decomp_buffer-Object_RAM)
-		clr.w	(DMA_queue).w
-		move.l	#DMA_queue,(DMA_queue_slot).w
+		ResetDMAQueue
 		clr.w	(Level_frame_counter).w
 		clr.w	(Competition_mode).w
 		clr.b	(Level_started_flag).w
@@ -14371,8 +14260,7 @@ Competition_PlayerSelect:
 		jsr	sub_C04C(pc)
 		clearRAM	Sprite_table_input,(Sprite_table_input_end-Sprite_table_input)
 		clearRAM	Object_RAM,(Kos_decomp_buffer-Object_RAM)
-		clr.w	(DMA_queue).w
-		move.l	#DMA_queue,(DMA_queue_slot).w
+		ResetDMAQueue
 		clr.w	(Level_frame_counter).w
 		move.w	#-1,(Events_bg+$10).w
 		clr.w	(Events_bg+$12).w
@@ -14739,8 +14627,7 @@ Competition_Results:
 		jsr	sub_C04C(pc)
 		clearRAM	Sprite_table_input,(Sprite_table_input_end-Sprite_table_input)
 		clearRAM	Object_RAM,(Kos_decomp_buffer-Object_RAM)
-		clr.w	(DMA_queue).w
-		move.l	#DMA_queue,(DMA_queue_slot).w
+		ResetDMAQueue
 		clr.w	(Level_frame_counter).w
 		clr.w	(Competition_mode).w
 		clr.b	(Level_started_flag).w
@@ -15134,8 +15021,7 @@ TimeAttack_Records:
 		jsr	sub_C04C(pc)
 		clearRAM	Sprite_table_input,(Sprite_table_input_end-Sprite_table_input)
 		clearRAM	Object_RAM,(Kos_decomp_buffer-Object_RAM)
-		clr.w	(DMA_queue).w
-		move.l	#DMA_queue,(DMA_queue_slot).w
+		ResetDMAQueue
 		clr.w	(Level_frame_counter).w
 		clr.w	(Competition_mode).w
 		clr.b	(Level_started_flag).w
@@ -16065,8 +15951,7 @@ SaveScreen:
 		move.w	#$9280,(a6)
 		clearRAM	Sprite_table_input,(Sprite_table_input_end-Sprite_table_input)
 		clearRAM	Object_RAM,(Kos_decomp_buffer-Object_RAM)
-		clr.w	(DMA_queue).w
-		move.l	#DMA_queue,(DMA_queue_slot).w
+		ResetDMAQueue
 		clr.w	(Level_frame_counter).w
 		clr.w	(Events_bg+$10).w
 		clr.w	(Events_bg+$12).w
@@ -63089,8 +62974,7 @@ loc_2DF8C:
 		move.w	#$9001,(a6)
 		clearRAM	Sprite_table_input,(Sprite_table_input_end-Sprite_table_input)
 		clearRAM	Object_RAM,(Kos_decomp_buffer-Object_RAM)
-		clr.w	(DMA_queue).w
-		move.l	#DMA_queue,(DMA_queue_slot).w
+		ResetDMAQueue
 		clr.w	(SRAM_mask_interrupts_flag).w
 		jsr	(SaveGame_SpecialStage).l
 		clr.w	(Competition_mode).w
@@ -100275,8 +100159,7 @@ sub_4C8E4:
 		jsr	(Init_SpriteTable).l
 		clearRAM	Normal_palette,(Stack_contents-Normal_palette)
 		clr.w	(Current_zone_and_act).w
-		clr.w	(DMA_queue).w
-		move.l	#DMA_queue,(DMA_queue_slot).w
+		ResetDMAQueue
 		rts
 ; End of function sub_4C8E4
 
