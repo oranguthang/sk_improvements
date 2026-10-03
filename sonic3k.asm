@@ -61762,12 +61762,6 @@ Load_Starpost_Settings:
 		move.w	(Saved_Y_pos).w,(Player_1+y_pos).w
 		move.w	(Saved_ring_count).w,(Ring_count).w
 		move.b	(Saved_extra_life_flags).w,(Extra_life_flags).w
-		tst.b	(Respawn_table_keep).w
-		bne.s	loc_2D274
-		clr.w	(Ring_count).w
-		clr.b	(Extra_life_flags).w
-
-loc_2D274:
 		move.l	(Saved_timer).w,(Timer).w
 		move.b	#60-1,(Timer_frame).w
 		subq.b	#1,(Timer_second).w
