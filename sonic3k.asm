@@ -35,7 +35,7 @@ SonicDriverVer = 4 ; Tell SMPS2ASM that we are targeting Sonic & Knuckles' sound
 strip_padding = 0|Sonic3_Complete
 ; If 1, strips all unnecessary padding
 
-FixBugs = 0
+FixBugs = 1
 ; If 1, fixes multiple bugs within the game
 
 Size_of_Snd_driver_guess = $E00
