@@ -169,6 +169,16 @@ button_C_mask:			EQU	1<<button_C	; $20
 button_A_mask:			EQU	1<<button_A	; $40
 button_start_mask:		EQU	1<<button_start	; $80
 
+; Extra buttons on 6-button controllers (stored separately from A/B/C/D-pad).
+button_Z:			EQU	0
+button_Y:			EQU	1
+button_X:			EQU	2
+button_mode:		EQU	3
+button_Z_mask:		EQU	1<<button_Z
+button_Y_mask:		EQU	1<<button_Y
+button_X_mask:		EQU	1<<button_X
+button_mode_mask:		EQU	1<<button_mode
+
 ; ---------------------------------------------------------------------------
 ; Player Status Variables
 Status_Facing       = 0
@@ -736,7 +746,12 @@ Camera_stored_min_X_pos		ds.w 1			; the target camera minimum x-position
 Camera_stored_min_Y_pos		ds.w 1			; the target camera minimum y-position
 Camera_stored_max_Y_pos		ds.w 1			; the target camera maximum y-position
 Slotted_object_bits		ds.w 1			; bits to determine which slots are used for slotted objects
-			ds.b 6				; unused
+; Use spare RAM here to preserve Ctrl_1/Ctrl_2 and Sonic 3's _tempF608.
+Ctrl_1_held_6B			ds.b 1			; bits 0-3: Z/Y/X/Mode; bit 7: 6-button pad detected
+Ctrl_1_pressed_6B		ds.b 1			; newly pressed extra buttons (bits 0-3 only)
+Ctrl_2_held_6B			ds.b 1
+Ctrl_2_pressed_6B		ds.b 1
+			ds.b 2				; unused
 _unkFAA2			ds.b 1
 _unkFAA3			ds.b 1
 _unkFAA4			ds.w 1

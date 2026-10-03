@@ -1289,9 +1289,13 @@ Init_Controllers:
 		stopZ80
 		moveq	#$40,d0
 		move.b	d0,(HW_Port_1_Control).l
+		move.b	d0,(HW_Port_1_Data).l	; leave TH high before the first poll
 		move.b	d0,(HW_Port_2_Control).l
+		move.b	d0,(HW_Port_2_Data).l
 		move.b	d0,(HW_Expansion_Control).l
 		startZ80
+		clr.w	(Ctrl_1_held_6B).w
+		clr.w	(Ctrl_2_held_6B).w
 		rts
 ; End of function Init_Controllers
 
@@ -1300,10 +1304,15 @@ Init_Controllers:
 
 
 Poll_Controllers:
+		movem.l	d2/a2,-(sp)		; preserve the original routine's register contract
 		lea	(Ctrl_1).w,a0
+		lea	(Ctrl_1_held_6B).w,a2
 		lea	(HW_Port_1_Data).l,a1
-		bsr.s	Poll_Controller	; poll first controller
+		bsr.w	Poll_Controller	; poll first controller
 		addq.w	#2,a1	; poll second controller
+		bsr.w	Poll_Controller
+		movem.l	(sp)+,d2/a2
+		rts
 ; End of function Poll_Controllers
 
 
@@ -1311,24 +1320,68 @@ Poll_Controllers:
 
 
 Poll_Controller:
-		move.b	#0,(a1)			; Poll controller data port
+		; Poll once per frame, with the Z80 stopped by the caller.
+		; Steps 1/2 read the original buttons; steps 3-6 identify a 6-button pad.
+		move.b	#$40,(a1)		; step 1: B/C/D-pad
 		nop
 		nop
-		move.b	(a1),d0			; Get controller port data (start/A)
-		lsl.b	#2,d0
-		andi.b	#$C0,d0
-		move.b	#$40,(a1)		; Poll controller data port again
 		nop
 		nop
-		move.b	(a1),d1			; Get controller port data (B/C/Dpad)
-		andi.b	#$3F,d1
+		move.b	(a1),d0
+		move.b	#0,(a1)			; step 2: A/Start
+		nop
+		nop
+		nop
+		nop
+		move.b	(a1),d1
+		andi.b	#$3F,d0
+		andi.b	#$30,d1
+		lsl.b	#2,d1
 		or.b	d1,d0			; Fuse together into one controller bit array
 		not.b	d0
 		move.b	(a0),d1			; Get press button data
 		eor.b	d0,d1			; Toggle off buttons that are being held
-		move.b	d0,(a0)+		; Put raw controller input (for held buttons) in F604/F606
+		move.b	d0,(a0)+		; Store held buttons; keep the original RAM layout
 		and.b	d0,d1
-		move.b	d1,(a0)+		; Put pressed controller input in F605/F607
+		move.b	d1,(a0)+		; Store buttons newly pressed this frame
+
+		rept 2				; steps 3/4 and 5/6
+		move.b	#$40,(a1)
+		nop
+		nop
+		nop
+		nop
+		move.b	#0,(a1)
+		nop
+		nop
+		nop
+		nop
+		endm
+		move.b	(a1),d2			; step 6: bits 0-3 are zero on a 6-button pad
+		andi.b	#$F,d2
+		move.b	#$40,(a1)		; step 7: X/Y/Z/Mode; always leave TH high
+		nop
+		nop
+		nop
+		nop
+		tst.b	d2
+		bne.s	.three_button
+		move.b	(a1),d0
+		not.b	d0
+		andi.b	#$F,d0			; Z/Y/X/Mode, active high
+		ori.b	#$80,d0			; mark a detected 6-button pad, even when idle
+		bra.s	.store_extra
+
+.three_button:
+		moveq	#0,d0			; clear stale extra inputs on disconnect/change of pad
+
+.store_extra:
+		move.b	(a2),d1
+		eor.b	d0,d1
+		move.b	d0,(a2)+
+		and.b	d0,d1
+		andi.b	#$F,d1			; the detection flag is not a button press
+		move.b	d1,(a2)+
 		rts
 ; End of function Poll_Controller
 
