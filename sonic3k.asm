@@ -4686,6 +4686,14 @@ SuperHyper_PalCycle_RevertNotSonic:
 ; ---------------------------------------------------------------------------
 
 SuperHyper_PalCycle_RevertKnuckles:
+		cmpi.w	#4,(Player_mode).w			; Blue Knuckles fix: is this Blue Knuckles?
+		blo.s	.redKnuckles				; If not, branch
+		; Blue Knuckles wears Sonic's colors, so restore them from the first frame of
+		; Super Sonic's cycle, which also has the matching underwater colors (d0 is 0)
+		lea	(PalCycle_SuperSonic).l,a0
+		bra.w	SuperHyper_PalCycle_SonicApply
+
+.redKnuckles:
 		lea	(PalCycle_SuperHyperKnucklesRevert).l,a0
 		bra.w	SuperHyper_PalCycle_Apply
 ; ---------------------------------------------------------------------------
@@ -4694,7 +4702,7 @@ SuperHyper_PalCycle_Normal:
 		cmpi.w	#2,(Player_mode).w		; If Tails...
 		beq.w	SuperHyper_PalCycle_NormalTails
 		cmpi.w	#3,(Player_mode).w		; ...or Knuckles, branch, making this code Sonic-specific
-		beq.w	SuperHyper_PalCycle_NormalKnuckles
+		bhs.w	SuperHyper_PalCycle_NormalKnuckles	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		tst.b	(Super_Sonic_Knux_flag).w	; If Hyper Sonic, branch
 		bmi.s	SuperHyper_PalCycle_HyperSonic
 
@@ -4793,6 +4801,11 @@ SuperHyper_PalCycle_NormalKnuckles:
 
 		; increment palette frame and update Knuckles' palette
 		lea	(PalCycle_SuperHyperKnuckles).l,a0
+		cmpi.w	#4,(Player_mode).w			; Blue Knuckles fix: is this Blue Knuckles?
+		blo.s	.redKnuckles				; If not, branch
+		lea	(PalCycle_SuperHyperBlueKnuckles).l,a0
+
+.redKnuckles:
 		move.w	(Palette_frame).w,d0
 		addq.w	#6,(Palette_frame).w			; next frame
 		cmpi.w	#$3C,(Palette_frame).w			; is it the last frame?
@@ -4877,6 +4890,18 @@ PalCycle_SuperHyperKnuckles:
 		dc.w $84E,$40C,$206
 PalCycle_SuperHyperKnucklesRevert:
 		dc.w $64E,$20C,$206
+; Blue Knuckles fix: Super Knuckles' cycle with the red and blue channels swapped
+PalCycle_SuperHyperBlueKnuckles:
+		dc.w $E6A,$E46,$824
+		dc.w $E8C,$E68,$A46
+		dc.w $EAE,$E8A,$C68
+		dc.w $ECE,$EAC,$E8A
+		dc.w $EEE,$ECE,$EAC
+		dc.w $ECE,$EAC,$E8A
+		dc.w $EAE,$E8A,$C68
+		dc.w $E8C,$E68,$A46
+		dc.w $E6A,$E46,$824
+		dc.w $E48,$C04,$602
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -7582,7 +7607,7 @@ loc_60B4:
 		bne.s	loc_60DA
 		moveq	#PLCID_05,d0
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_60DA
+		bhs.s	loc_60DA	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		moveq	#PLCID_01,d0
 		cmpi.w	#2,(Player_mode).w
 		bne.s	loc_60DA
@@ -7638,7 +7663,7 @@ loc_61BE:
 		ResetDMAQueue
 		moveq	#PalID_SonicTails,d0
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_61DA
+		bne.s	loc_61DA	; Blue Knuckles: only player mode 3 uses Knuckles' red palette
 		moveq	#PalID_Knuckles,d0
 
 loc_61DA:
@@ -7668,7 +7693,7 @@ loc_622A:
 		cmpi.w	#$700,(Current_zone_and_act).w
 		bne.s	loc_6248
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_6248
+		blo.s	loc_6248	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		tst.w	(SK_alone_flag).w
 		beq.s	loc_6248
 		tst.b	(Last_star_post_hit).w
@@ -7691,7 +7716,7 @@ loc_6268:
 		cmpi.w	#$700,(Current_zone_and_act).w
 		bne.s	loc_62B6
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_62B6
+		blo.s	loc_62B6	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		tst.w	(SK_alone_flag).w
 		beq.s	loc_62B6
 		tst.b	(Last_star_post_hit).w
@@ -8112,7 +8137,7 @@ loc_6834:
 		bne.s	loc_6886
 		move.b	#$1B,anim(a1)
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_685C
+		blo.s	loc_685C	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.w	#($21<<8)|$21,anim(a1)	; and prev_anim
 		move.b	#1,anim_frame(a1)
 	if FixBugs
@@ -8139,7 +8164,7 @@ loc_6886:
 		cmpi.w	#$900,(Current_zone_and_act).w
 		bne.s	loc_6896
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_68A6
+		blo.s	loc_68A6	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 
 loc_6896:
 		cmpi.w	#$1600,(Current_zone_and_act).w
@@ -8202,7 +8227,7 @@ loc_693E:
 		cmpi.w	#$700,(Current_zone_and_act).w
 		bne.s	loc_695A
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_695A
+		blo.s	loc_695A	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.b	#$1B,anim(a1)
 		bset	#Status_InAir,status(a1)
 
@@ -8229,7 +8254,7 @@ loc_6986:
 
 loc_69A6:
 		cmpi.w	#3,(Player_mode).w
-		bne.s	locret_69B6
+		blo.s	locret_69B6	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 
 loc_69AE:
 		move.l	#Obj_LevelIntro_PlayerRun,(Dynamic_object_RAM+(object_size*2)).w
@@ -8625,7 +8650,7 @@ DynamicWaterHeight_AIZ1:
 
 DynamicWaterHeight_AIZ2:
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_6DF6
+		blo.s	loc_6DF6	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		cmpi.w	#$820,(Camera_target_max_Y_pos).w
 		beq.s	locret_6E6C
 		cmpi.w	#$3B60,(Camera_X_pos).w
@@ -8705,7 +8730,7 @@ DynamicWaterHeight_HCZ2:
 loc_6EA4:
 		lea	(word_6EBA).l,a1
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_6F2C
+		blo.s	loc_6F2C	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		lea	(word_6EC2).l,a1
 		bra.s	loc_6F2C
 ; ---------------------------------------------------------------------------
@@ -8735,7 +8760,7 @@ word_6ED4:
 
 DynamicWaterHeight_LBZ2:
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_6EF2
+		bhs.s	loc_6EF2	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		rts
 ; ---------------------------------------------------------------------------
 
@@ -9738,7 +9763,7 @@ CheckLevelForWater:
 		cmpi.w	#1,(Apparent_zone_and_act).w
 		bne.s	loc_78F2
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_78F2
+		blo.s	loc_78F2	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 
 loc_78B2:
 		cmpi.b	#1,(Current_zone).w
@@ -9746,7 +9771,7 @@ loc_78B2:
 		cmpi.w	#$301,(Current_zone_and_act).w
 		bne.s	loc_78CA
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_78F2
+		blo.s	loc_78F2	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 
 loc_78CA:
 		cmpi.w	#$501,(Current_zone_and_act).w
@@ -9843,7 +9868,7 @@ loc_7A00:
 
 loc_7A18:
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_7A22
+		beq.s	loc_7A22	; Blue Knuckles: only player mode 3 uses Knuckles' red palette
 
 locret_7A20:
 		rts
@@ -10156,7 +10181,7 @@ LevelSelect_CheckKnuckles:
 		tst.w	(Debug_cheat_flag).w
 		bne.s	loc_7DBA
 		cmpi.w	#3,(Player_mode).w		; Are we Knuckles?
-		bne.s	LevelSelect_CheckSonicTails	; If not, branch
+		blo.s	LevelSelect_CheckSonicTails	; If not, branch
 		cmpi.w	#$A00,d0			; Is SSZ act 1 selected?
 		beq.s	LevelSelect_DenySelection	; If so, branch and deny entry
 		cmpi.w	#$C00,d0			; Is DDZ act 1 selected?
@@ -10368,7 +10393,7 @@ LevelSelect_PickCharacterNumber:
 		btst	#button_C,(Ctrl_1_pressed).w
 		beq.s	locret_7F60
 		addq.w	#1,(Player_option).w
-		cmpi.w	#4,(Player_option).w
+		cmpi.w	#5,(Player_option).w	; Blue Knuckles fix: player mode 4 is selectable
 		blo.s	locret_7F60
 		move.w	#0,(Player_option).w
 
@@ -10599,7 +10624,7 @@ loc_8284:
 		move.w	(a1)+,(a2)+
 		dbf	d0,loc_8284
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_82A6
+		bne.s	loc_82A6	; Blue Knuckles: only player mode 3 uses Knuckles' red palette
 		lea	(Pal_SStage_Knux).l,a1
 		lea	(Target_palette+$10).w,a2
 		move.w	#bytesToWcnt($10),d0
@@ -11408,7 +11433,7 @@ Obj_SStage_8FAA:
 
 loc_8FFA:
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_9010
+		blo.s	loc_9010	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.l	#Map_SStageKnuckles,mappings(a0)
 		move.w	#make_art_tile(ArtTile_SStage_Player1,0,1),art_tile(a0)
 
@@ -11533,7 +11558,7 @@ loc_9152:
 
 loc_918A:
 		cmpi.w	#3,(Player_mode).w
-		bne.s	SStage_PLCLoad_91A2
+		blo.s	SStage_PLCLoad_91A2	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		lea	(PLC_SStageKnuckles).l,a2
 		move.l	#ArtUnc_SStageKnuckles,d6
 		move.w	#tiles_to_bytes(ArtTile_SStage_Player1),d4
@@ -15846,7 +15871,7 @@ SaveGame:
 loc_C464:
 		move.b	d0,3(a1)			; Move next level into current level
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_C478
+		blo.s	loc_C478	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		cmpi.b	#$C,d0
 		blo.s	loc_C4B0
 		bra.s	loc_C498		; If playing as Knuckles and level code is Death Egg or higher, make it a completed save file
@@ -17453,7 +17478,7 @@ loc_DA48:
 
 sub_DA4E:
 		cmpi.w	#3,$34(a0)
-		bne.s	loc_DA62
+		blo.s	loc_DA62			; Blue Knuckles fix: player modes 3+ go to Sky Sanctuary 2
 		cmpi.b	#$B,d0
 		bne.s	loc_DA62
 		move.w	#$A01,d0
@@ -21375,7 +21400,7 @@ HyperTouch_Harmful:
 HyperTouch_Special:
 		ori.b	#3,collision_property(a1)
 		cmpi.w	#3,(Player_mode).w		; Are we in Knuckles Alone mode?
-		bne.s	.sonicortails			; If not, branch
+		blo.s	.sonicortails			; If not, branch
 		move.w	x_pos(a1),(Player_2+x_pos).w	; ???
 		move.w	y_pos(a1),(Player_2+y_pos).w	; ???
 
@@ -35388,7 +35413,7 @@ Obj_HyperSonicKnux_Trail:
 		; init
 		move.l	#Map_Knuckles,mappings(a0)	; Load Knuckles' mappings
 		cmpi.w	#3,(Player_mode).w		; Are we playing as Knuckles?
-		beq.s	.playingasknux			; If so, branch
+		bhs.s	.playingasknux			; If so, branch
 		move.l	#Map_SuperSonic,mappings(a0)	; If not, you must be Hyper Sonic, load Super/Hyper Sonic mappings
 
 	.playingasknux:
@@ -38207,7 +38232,7 @@ loc_1BE5E:
 		lsr.w	#5,d0
 		lea	(Sonic_Start_Locations).l,a1
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_1BE7A
+		blo.s	loc_1BE7A	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		lea	(Knux_Start_Locations).l,a1
 
 loc_1BE7A:
@@ -38284,7 +38309,7 @@ loc_1BF48:
 
 loc_1BF68:
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_1BF74
+		blo.s	loc_1BF74	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 
 loc_1BF70:
 		addi.w	#$B0,d1		; Only if in Hidden Palace, in Death Egg 1, in Lava Reef 1 as Knuckles, in Carnival Night 1 as Knuckles
@@ -38942,7 +38967,7 @@ loc_1C4A6:
 		moveq	#PalID_AIZ,d0
 		jsr	(LoadPalette_Immediate).l
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_1C4C4
+		blo.s	loc_1C4C4	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		lea	(Normal_palette_line_4+$10).w,a1
 		lea	(word_4FAE4).l,a2
 		move.l	(a2)+,(a1)+
@@ -39015,7 +39040,7 @@ loc_1C594:
 		blo.s	locret_1C5C4
 		move.w	#$C02,d0
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_1C5AE
+		blo.s	loc_1C5AE	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.w	(word_4FAEA).l,d0
 
 
@@ -39088,7 +39113,7 @@ AIZ2_Resize_Index:
 
 loc_1C64E:
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_1C660
+		blo.s	loc_1C660	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.b	#$12,(Dynamic_resize_routine).w		; If playing as Knuckles
 		bra.w	AIZ2_KnuxResize1
 ; ---------------------------------------------------------------------------
@@ -52597,7 +52622,7 @@ Obj_LBZCupElevator:
 		btst	#6,subtype(a0)			; BIT 6
 		beq.s	loc_2698A
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_2698A
+		blo.s	loc_2698A	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.w	#$7F00,x_pos(a0)		; Set this object to be deleted if bit 6 is set and Knuckles is playing
 
 loc_2698A:
@@ -53250,7 +53275,7 @@ Obj_LBZCupElevatorPole:
 		btst	#6,subtype(a0)
 		beq.s	loc_270E4
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_270E4
+		blo.s	loc_270E4	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.w	#$7F00,x_pos(a0)
 
 loc_270E4:
@@ -62580,7 +62605,7 @@ loc_2DB1C:
 		bls.s	loc_2DB58
 		lea	(ArtKosM_ResultsKNUCKLES).l,a1
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_2DB58
+		bhs.s	loc_2DB58	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		lea	(ArtKosM_ResultsMILES).l,a1
 		tst.b	(Graphics_flags).w
 		bpl.s	loc_2DB58
@@ -62787,7 +62812,7 @@ Obj_LevResultsCharName:
 		cmpi.w	#2,(Player_mode).w
 		beq.s	loc_2DD62
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_2DD7E
+		blo.s	loc_2DD7E	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		addq.b	#3,mapping_frame(a0)	; Knuckles frame
 		moveq	#$30,d0
 		sub.w	d0,x_pos(a0)
@@ -63115,7 +63140,7 @@ loc_2DF8C:
 		move.w	#tiles_to_bytes($5B8),d2
 		jsr	(Queue_Kos_Module).l
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_2E04E
+		blo.s	loc_2E04E	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		lea	(ArtKosM_SSResultsSUPERk).l,a1
 		cmpi.b	#7,(Super_emerald_count).w
 		blo.s	loc_2E06A
@@ -63139,7 +63164,7 @@ loc_2E06A:
 		bls.s	loc_2E0A2
 		lea	(ArtKosM_ResultsKNUCKLES).l,a1
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_2E0A2
+		bhs.s	loc_2E0A2	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		lea	(ArtKosM_ResultsMILES).l,a1
 		tst.b	(Graphics_flags).w
 		bpl.s	loc_2E0A2
@@ -63294,7 +63319,7 @@ loc_2E2B0:
 
 sub_2E2C0:
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_2E2F6
+		bne.s	loc_2E2F6	; Blue Knuckles: only player mode 3 uses Knuckles' red palette
 		lea	(Normal_palette+$4).w,a0
 		move.l	#$84E040C,d0
 		move.l	d0,Target_palette-Normal_palette(a0)
@@ -63501,7 +63526,7 @@ loc_2E540:
 		cmpi.b	#7,(Chaos_emerald_count).w
 		blo.s	loc_2E5B8
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_2E570
+		bhs.s	loc_2E570	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		cmpi.w	#1,(Player_mode).w
 		bls.s	loc_2E570
 		cmpi.b	#4,(Special_stage_zone_and_act).w
@@ -63917,7 +63942,7 @@ loc_2E9F6:
 		tst.b	(SK_special_stage_flag).w
 		beq.s	loc_2EA10
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_2EA10
+		blo.s	loc_2EA10	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.w	#make_art_tile($000,1,0),art_tile(a0)
 
 loc_2EA10:
@@ -63934,7 +63959,7 @@ loc_2EA1E:
 		beq.s	loc_2EA4A
 		addi.b	#$1A,mapping_frame(a0)
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_2EA4A
+		blo.s	loc_2EA4A	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		addq.b	#5,mapping_frame(a0)
 		bra.s	loc_2EA4A
 ; ---------------------------------------------------------------------------
@@ -63977,7 +64002,7 @@ loc_2EA7C:
 		beq.s	loc_2EA4A
 		addi.b	#$1A,mapping_frame(a0)
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_2EA4A
+		blo.s	loc_2EA4A	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		addq.b	#5,mapping_frame(a0)
 		bra.s	loc_2EA4A
 ; ---------------------------------------------------------------------------
@@ -64024,7 +64049,7 @@ loc_2EAF6:
 		tst.b	(SK_special_stage_flag).w
 		beq.w	loc_2EA4A
 		cmpi.w	#3,(Player_mode).w
-		bne.w	loc_2EA4A
+		blo.w	loc_2EA4A	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		addi.w	#palette_line_1,art_tile(a0)
 		bra.w	loc_2EA4A
 ; ---------------------------------------------------------------------------
@@ -64103,6 +64128,10 @@ loc_2EBE8:
 		moveq	#0,d0
 
 loc_2EC06:
+		cmpi.w	#2,d0				; Blue Knuckles fix: keep the frame inside Knuckles' icons
+		bls.s	+				; Player modes 3+ show Knuckles' icon
+		moveq	#2,d0
++
 		addi.w	#$29,d0
 		move.b	d0,mapping_frame(a0)
 		btst	#3,(Level_frame_counter+1).w
@@ -64176,7 +64205,7 @@ sub_2EC80:
 		moveq	#-$18,d0
 		moveq	#3,d1
 		cmpi.w	#3,(Player_mode).w
-		beq.s	.return
+		bhs.s	.return	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		moveq	#0,d0
 		moveq	#1,d1
 		tst.b	(Graphics_flags).w
@@ -67673,7 +67702,7 @@ Obj_CNZCylinder:
 		cmpi.w	#$17E0,x_pos(a0)
 		bne.s	loc_32108
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_32108
+		blo.s	loc_32108	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		jmp	(Delete_Current_Sprite).l
 ; ---------------------------------------------------------------------------
 
@@ -91019,7 +91048,7 @@ loc_45574:
 loc_45596:
 		move.w	#make_art_tile(ArtTile_HPZTeleporter,0,0),art_tile(a0)	; If in HPZ, use this VRAM offset
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_455B2
+		blo.s	loc_455B2	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.b	#$4A,subtype(a0)
 		bra.s	loc_455B2
 ; ---------------------------------------------------------------------------
@@ -91572,7 +91601,7 @@ loc_45B8A:
 
 loc_45B94:
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_45BC8
+		blo.s	loc_45BC8	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		cmpi.w	#$240,(Camera_Y_pos).w
 		bhs.s	locret_45BF2
 		cmpi.w	#$B00,(Player_1+x_pos).w
@@ -98775,6 +98804,10 @@ loc_4B9CE:
 		moveq	#0,d0
 
 loc_4B9E8:
+		cmpi.w	#2,d0				; Blue Knuckles fix: keep the index inside the array
+		bls.s	+				; Player modes 3+ load as Knuckles
+		moveq	#2,d0
++
 		move.b	d0,character_id(a0)
 		lsl.w	#2,d0
 		move.l	off_4B9C2(pc,d0.w),mappings(a0)
@@ -104502,7 +104535,7 @@ locret_4FA40:
 
 Adjust_AIZ1Chunks:
 		cmpi.w	#3,(Player_mode).w
-		beq.s	Adjust_AIZ1Chunks2			; Make changes to AIZ's chunk data if playing as Knuckles
+		bhs.s	Adjust_AIZ1Chunks2			; Make changes to AIZ's chunk data if playing as Knuckles
 		rts
 ; End of function Adjust_AIZ1Chunks
 
@@ -104855,7 +104888,7 @@ loc_4FE4A:
 
 Adjust_AIZ2Layout:
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_4FECC
+		blo.s	loc_4FECC	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.w	#$5B,($FF1020).l		; Only do this if playing as Knuckles
 		lea	($FF3420).l,a1
 		moveq	#8-1,d1
@@ -107681,7 +107714,7 @@ CNZ1BGE_DoTransition:
 		jsr	(LoadSolids).l
 		jsr	(CheckLevelForWater).l		; Level stuff, etc.
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_51EC0
+		bhs.s	loc_51EC0	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.w	#$8014,(VDP_control_port).l		; Turn HInt on for water only if not playing as Knuckles
 
 loc_51EC0:
@@ -107976,7 +108009,7 @@ CNZ2_ScreenEvent_Index:
 
 loc_5215A:
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_5216C
+		bhs.s	loc_5216C	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.w	#8,(Events_routine_fg).w	; If playing as Sonic/Tails, don't do any special screen events
 		bra.w	CNZ2SE_Normal
 ; ---------------------------------------------------------------------------
@@ -110108,7 +110141,7 @@ ICZ1_ScreenInit:
 		tst.b	(Last_star_post_hit).w
 		bne.s	loc_53648			; If not restarting from a lamppost
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_53648			; And we're Knuckles
+		blo.s	loc_53648			; And we're Knuckles
 		jsr	(AllocateObject).l
 		bne.s	loc_53648
 		move.l	#Obj_ICZTeleporter,(a1)	; Make teleporter object, etc.
@@ -110232,7 +110265,7 @@ ICZ1BGE_Intro:
 		beq.s	loc_53780
 		clr.w	(Events_fg_5).w		; If flag is set
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_5375C
+		blo.s	loc_5375C	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		addq.w	#4,(Events_routine_bg).w	; Just go to next BG event if playing as Knuckles
 		bra.s	loc_53780
 ; ---------------------------------------------------------------------------
@@ -110268,7 +110301,7 @@ ICZ1BGE_SnowFall:
 		tst.w	(Events_fg_5).w
 		bne.s	loc_537C6
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_53780	; If Knuckles, skip
+		bhs.s	loc_53780	; If Knuckles, skip
 		jsr	ICZ1_BigSnowFall(pc)
 
 loc_537BA:
@@ -110919,7 +110952,7 @@ loc_53EDC:
 		move.w	d1,(a1)+	; Set up tile offsets for VScroll array
 		dbf	d0,loc_53EDC
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_53F06
+		bhs.s	loc_53F06	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		cmpi.w	#$3B60,(Camera_X_pos).w	; Skip this if Knuckles
 		blo.s	loc_53F0A
 		jsr	(AllocateObject).l
@@ -110946,7 +110979,7 @@ LBZ1_ScreenEvent:
 		bne.s	loc_53F6A
 		clr.w	(Events_fg_4).w
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_53F50
+		bhs.s	loc_53F50	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		movea.w	8(a3),a1
 		move.b	#$DA,$7D(a1)		; Changes the chunk where the boss appears
 		jmp	Refresh_PlaneScreenDirect(pc)
@@ -111157,7 +111190,7 @@ loc_540FC:
 
 LBZ1_KnuxLevelSizeAdjust:
 		cmpi.w	#3,(Player_mode).w
-		bne.s	locret_54144		; Only do this if playing as Knuckles
+		blo.s	locret_54144		; Only do this if playing as Knuckles
 		move.w	(Player_1+x_pos).w,d0
 		cmpi.w	#$37C0,d0			; Basically this adjusts the top of the screen for Knuckles when he approaches the end of the level
 		blo.s	locret_54144
@@ -111223,7 +111256,7 @@ loc_54172:
 
 LBZ1_BackgroundInit:
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_541C6
+		blo.s	loc_541C6	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		movea.w	(a3),a1			; Get rid of the Death Egg portion of the BG while playing as Knuckles. For obvious reasons.
 		addq.w	#2,a1
 		move.b	#$E4,(a1)+
@@ -111375,7 +111408,7 @@ LBZ2_ScreenEvent_Index:
 
 LBZ2SE_FromTransition:
 		cmpi.w	#3,(Player_mode).w		; Only run when going from transition, of course
-		beq.s	loc_543C2				; Knuckles adjusts the layout immediately.
+		bhs.s	loc_543C2				; Knuckles adjusts the layout immediately.
 		cmpi.w	#$60A,(Player_1+x_pos).w
 		blo.s	loc_5439E
 		bsr.s	LBZ2_LayoutMod
@@ -112231,7 +112264,7 @@ MHZ1_ScreenInit:
 		move.b	(Last_star_post_hit).w,d0
 		beq.s	loc_54AE0
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_54B18
+		blo.s	loc_54B18	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		subq.b	#1,d0
 		bne.s	loc_54B18
 		move.w	#$680,d2
@@ -112242,7 +112275,7 @@ loc_54AE0:
 		move.w	#$560,d2
 		move.w	#$948,d3
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_54B08
+		bhs.s	loc_54B08	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		lea	(Player_1).w,a1
 		move.w	#$718,x_pos(a1)
 		move.w	#$62D,y_pos(a1)
@@ -112690,7 +112723,7 @@ sub_54F8C:
 		bne.s	loc_54FD4
 		move.w	#$2DC,d3
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_54FC4
+		bhs.s	loc_54FC4	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.w	#$2CD,d3
 
 loc_54FC4:
@@ -113058,7 +113091,7 @@ loc_55312:
 		st	(Events_bg+$00).w
 		lea	word_558E8(pc),a1
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_5535A
+		blo.s	loc_5535A	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		lea	$10(a1),a1
 
 loc_5535A:
@@ -113339,7 +113372,7 @@ loc_5560C:
 		move.w	(Camera_X_pos).w,d0
 		addq.w	#4,d0
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_55620
+		blo.s	loc_55620	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		addq.w	#1,d0
 
 loc_55620:
@@ -113372,7 +113405,7 @@ loc_5564A:
 		andi.w	#$F,d1
 		lea	word_558E8(pc),a1
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_55686
+		blo.s	loc_55686	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		lea	$10(a1),a1
 
 loc_55686:
@@ -113410,7 +113443,7 @@ loc_556C4:
 		move.w	d0,x_pos(a1)
 		move.w	#$400,ground_vel(a1)
 		cmpi.w	#3,(Player_mode).w
-		bne.s	locret_556F6
+		blo.s	locret_556F6	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.w	#$500,ground_vel(a1)
 		bra.s	locret_556F6
 ; ---------------------------------------------------------------------------
@@ -113841,7 +113874,7 @@ loc_55C84:
 		jsr	(LoadSolids).l
 		moveq	#PalID_SonicTails,d0
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_55CC6
+		bne.s	loc_55CC6	; Blue Knuckles: only player mode 3 uses Knuckles' red palette
 		moveq	#PalID_Knuckles,d0
 
 loc_55CC6:
@@ -115294,7 +115327,7 @@ loc_56B6C:
 		addq.w	#4,d1
 		dbf	d2,loc_56B6C
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_56B88
+		blo.s	loc_56B88	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		movea.w	4(a3),a1
 		move.b	#-$A,4(a1)
 
@@ -115866,7 +115899,7 @@ locret_5711C:
 
 loc_5711E:
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_57130
+		blo.s	loc_57130	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		clr.w	(Events_bg+$06).w
 		jmp	(Delete_Current_Sprite).l
 ; ---------------------------------------------------------------------------
@@ -120048,7 +120081,7 @@ word_5A106:
 
 HPZ_ScreenInit:
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_5A13E
+		blo.s	loc_5A13E	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.w	#$AA0,(Camera_max_X_pos).w
 		bra.s	loc_5A14C
 ; ---------------------------------------------------------------------------
@@ -120094,7 +120127,7 @@ loc_5A19E:
 HPZ_BackgroundInit:
 		move.w	$14(a3),$18(a3)
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_5A1C2
+		blo.s	loc_5A1C2	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		movea.w	4(a3),a1
 		move.b	#$8E,3(a1)
 		move.b	#$8F,4(a1)
@@ -121547,7 +121580,7 @@ loc_5B1A2:
 		clr.l	(V_scroll_value).w
 		clr.w	(_unkFAAE).w
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_5B1D2
+		blo.s	loc_5B1D2	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		jsr	(AllocateObject).l
 		bne.s	loc_5B1D2
 		move.l	#Obj_Song_Fade_Transition,(a1)
@@ -121643,7 +121676,7 @@ loc_5B29E:
 		st	(Events_fg_4).w
 		st	(_unkFACC).w
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_5B2B8
+		bhs.s	loc_5B2B8	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		rts
 ; ---------------------------------------------------------------------------
 
@@ -121854,7 +121887,10 @@ sub_5B42A:
 		jsr	(Queue_Kos_Module).l
 		move.w	(Player_mode).w,d0
 		moveq	#0,d1
-		andi.w	#3,d0
+		cmpi.w	#3,d0				; Blue Knuckles fix: treat player modes 3+ as Knuckles
+		bls.s	+				; (the original andi.w #3 turned mode 4 into Sonic and Tails)
+		moveq	#3,d0
++
 		subq.w	#2,d0
 		bmi.s	loc_5B452
 		beq.s	loc_5B44E
@@ -122928,7 +122964,7 @@ loc_5C3BC:
 		move.w	#make_art_tile(ArtTile_Continue_Text,0,1),d6
 		jsr	(sub_5B318).l
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_5C3FE
+		bhs.s	loc_5C3FE	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		tst.w	(SK_alone_flag).w
 		beq.s	loc_5C3EE
 		move.l	#Obj_Continue_SonicAlone,(Player_1).w
@@ -123306,7 +123342,7 @@ loc_5C82C:
 
 loc_5C838:
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_5C854
+		bhs.s	loc_5C854	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		lea	loc_5C8C8(pc),a1
 		move.l	a1,(a0)
 		move.w	#$40,x_pos(a0)
@@ -123404,7 +123440,7 @@ loc_5C94C:
 loc_5C95C:
 		move.b	#6,routine(a0)
 		cmpi.w	#3,(Player_mode).w
-		bne.s	locret_5C970
+		blo.s	locret_5C970	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.b	#1,(_unkFAA9).w
 
 locret_5C970:
@@ -123454,7 +123490,7 @@ loc_5CA1A:
 		move.l	#Map_ContinueIcons,mappings(a0)
 		move.w	#make_art_tile(ArtTile_Continue_Icons,0,0),art_tile(a0)
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_5CA36
+		bne.s	loc_5CA36	; Blue Knuckles: only player mode 3 uses Knuckles' red palette
 		move.w	#make_art_tile(ArtTile_Continue_Icons,3,0),art_tile(a0)
 
 loc_5CA36:
@@ -123596,6 +123632,10 @@ sub_5CB6A:
 		jsr	(CreateChild6_Simple).l
 
 loc_5CB7E:
+		cmpi.w	#3,d4				; Blue Knuckles fix: keep the index inside the array
+		bls.s	+				; Player modes 3+ show Knuckles' icons
+		moveq	#3,d4
++
 		lsl.w	#2,d4
 		move.l	off_5CB8E(pc,d4.w),$30(a0)
 		rts
@@ -124049,7 +124089,7 @@ loc_5DD6A:
 		move.b	#$1E,routine(a0)
 		st	(Events_fg_4).w
 		cmpi.w	#3,(Player_mode).w
-		beq.s	locret_5DDD0
+		bhs.s	locret_5DDD0	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		tst.b	(_unkFA88).w
 		bmi.s	locret_5DDD0
 		lea	word_5DDD2(pc),a2
@@ -125165,6 +125205,10 @@ Obj_5EB32:
 
 loc_5EB5C:
 		move.w	(Player_mode).w,d0
+		cmpi.w	#3,d0				; Blue Knuckles fix: keep the index inside the jump table
+		bls.s	+				; Player modes 3+ use Knuckles' ending
+		moveq	#3,d0
++
 		add.w	d0,d0
 		move.w	off_5EB6A(pc,d0.w),d0
 		jmp	off_5EB6A(pc,d0.w)
@@ -125307,7 +125351,8 @@ loc_5ECE4:
 		move.l	#loc_5ED18,(a0)
 		move.w	(Player_mode).w,d0
 		cmpi.w	#3,d0
-		bne.s	loc_5ECFC
+		blo.s	loc_5ECFC			; Blue Knuckles fix: treat player modes 3+ as Knuckles
+		moveq	#3,d0				; and keep the index inside the array
 		tst.b	(_unkFA88).w
 		bmi.s	loc_5ECFC
 		addq.w	#1,d0
@@ -125419,7 +125464,7 @@ loc_5EE18:
 		move.b	$2D(a0),d0
 		move.b	d0,$24(a0)
 		cmpi.w	#3,(Player_mode).w
-		bne.s	locret_5EE3A
+		blo.s	locret_5EE3A	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		bset	#2,render_flags(a0)
 
 locret_5EE3A:
@@ -125509,7 +125554,7 @@ loc_5EF28:
 		lea	AniRaw_6027C(pc),a1
 		jsr	(Animate_RawNoSST).l
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_5EF3E
+		bhs.s	loc_5EF3E	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		bsr.w	sub_5FE48
 
 loc_5EF3E:
@@ -125535,7 +125580,10 @@ Obj_5EF68:
 		clr.b	(Super_palette_status).w
 		move.w	(Player_mode).w,d0
 		moveq	#0,d1
-		andi.w	#3,d0
+		cmpi.w	#3,d0				; Blue Knuckles fix: treat player modes 3+ as Knuckles
+		bls.s	+				; (the original andi.w #3 turned mode 4 into Sonic and Tails)
+		moveq	#3,d0
++
 		subq.w	#2,d0
 		bmi.s	loc_5EF90
 		beq.s	loc_5EF8C
@@ -126412,7 +126460,7 @@ loc_5F94C:
 		lea	(Pal_FBZCloud).l,a1
 		lea	(Normal_palette).w,a2
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_5F96E
+		bhs.s	loc_5F96E	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		lea	(Normal_palette_line_2).w,a2
 
 loc_5F96E:
@@ -126526,7 +126574,7 @@ loc_5FA58:
 		move.l	#Map_FBZ2Preboss,mappings(a0)
 		move.w	#make_art_tile(ArtTile_Ending_Cloud,0,0),art_tile(a0)
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_5FA7A
+		bhs.s	loc_5FA7A	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.w	#make_art_tile(ArtTile_Ending_Cloud,1,0),art_tile(a0)
 
 loc_5FA7A:
@@ -126798,7 +126846,10 @@ loc_5FD82:
 sub_5FD88:
 		lea	(Player_1).w,a1
 		move.w	(Player_mode).w,d0
-		andi.w	#3,d0
+		cmpi.w	#3,d0				; Blue Knuckles fix: treat player modes 3+ as Knuckles
+		bls.s	+				; (the original andi.w #3 turned mode 4 into Sonic and Tails)
+		moveq	#3,d0
++
 		move.b	byte_5FDA0(pc,d0.w),mapping_frame(a1)
 		jmp	(Player_Load_PLC).l
 ; End of function sub_5FD88
@@ -126966,7 +127017,10 @@ KnucklesEnding_Load_PLC:
 
 sub_5FEFE:
 		move.w	(Player_mode).w,d0
-		andi.w	#3,d0
+		cmpi.w	#3,d0				; Blue Knuckles fix: treat player modes 3+ as Knuckles
+		bls.s	+				; (the original andi.w #3 turned mode 4 into Sonic and Tails)
+		moveq	#3,d0
++
 		add.w	d0,d0
 		adda.w	d0,a1
 		move.b	(a1)+,d0
@@ -151913,7 +151967,7 @@ loc_7289A:
 		lea	(Child6_CreateBossExplosion).l,a2
 		jsr	(CreateChild1_Normal).l
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_728C2
+		bhs.s	loc_728C2	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		jmp	(BossDefeated_StopTimer).l
 ; ---------------------------------------------------------------------------
 
@@ -165106,7 +165160,10 @@ loc_7BCFC:
 		bsr.w	sub_7BD30
 		subq.w	#1,$2E(a0)
 		bpl.w	locret_7B448
+		cmpi.w	#3,(Player_mode).w		; Blue Knuckles fix: keep player modes 3+ as they are
+		bhs.s	+
 		move.w	#3,(Player_mode).w
++
 		jsr	(AllocateObject).l
 		bne.s	loc_7BD1C
 		move.l	#loc_5E6C0,(a1)
@@ -171631,7 +171688,7 @@ loc_803D6:
 
 loc_8040C:
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_8041E
+		bhs.s	loc_8041E	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.w	#$D01,d0
 		jmp	(StartNewLevel).l
 ; ---------------------------------------------------------------------------
@@ -176234,7 +176291,7 @@ loc_837EE:
 		move.b	#$1E,y_radius(a0)
 		move.l	#AniRaw_EndSigns1,$30(a0)
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_83816
+		blo.s	loc_83816	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		move.l	#AniRaw_EndSigns2,$30(a0)
 
 loc_83816:
@@ -176317,6 +176374,10 @@ loc_838D6:
 		clr.w	y_vel(a0)			; Null velocity
 		moveq	#0,d0
 		move.b	(Player_mode+1).w,d0	; Get current character "mode"
+		cmpi.b	#3,d0				; Blue Knuckles fix: keep the index inside the array
+		bls.s	+				; Player modes 3+ show Knuckles' face in their own palette
+		moveq	#3,d0
++
 		move.b	FrameArray_EndSign(pc,d0.w),mapping_frame(a0)
 		st	(Ctrl_2_locked).w		; Null Sonic's input
 		rts
@@ -181479,7 +181540,7 @@ Obj_StartNewLevel:
 		jsr	(Check_InMyRange).l
 		beq.w	locret_8405E
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_86418
+		blo.s	loc_86418	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		cmpi.b	#9,(Current_zone).w
 		bne.s	loc_86418
 		st	(SRAM_mask_interrupts_flag).w
@@ -197720,7 +197781,7 @@ sub_907FA:
 		move.w	d0,d1
 		lsl.w	#2,d1
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_90808
+		blo.s	loc_90808	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		addq.w	#2,d1
 
 loc_90808:
@@ -197866,7 +197927,7 @@ Obj_HPZSSEntryControl:
 		jsr	(Queue_Kos_Module).l
 		lea	(Pal_CutsceneKnux).l,a1
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_90998
+		blo.s	loc_90998	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		lea	(Pal_SonicTails).l,a1
 
 loc_90998:
@@ -198426,7 +198487,7 @@ sub_90F0A:
 		add.w	d1,d1
 		move.l	word_90F74(pc,d1.w),x_vel(a0)	; and y_vel
 		cmpi.w	#3,(Player_mode).w
-		bne.s	loc_90F4A
+		blo.s	loc_90F4A	; Blue Knuckles fix: treat player modes 3+ as Knuckles
 		addq.w	#2,d1
 
 loc_90F4A:
