@@ -9755,29 +9755,97 @@ loc_7870:
 ; =============== S U B R O U T I N E =======================================
 
 
+; ---------------------------------------------------------------------------
+; Water settings table
+; ---------------------------------------------------------------------------
+; Every act listed in WaterSettings has water; any other act has none.
+; To give an act water, add a line for it and set its starting height in
+; StartingWaterHeights (and DynamicWaterHeight_Index if the water should move).
+;
+; waterlevel zone/act, flags, underwater palette ID, uneven surface palette
+; data (for HInt3/HInt4), Knuckles' 3 underwater colors (0 = keep the palette's)
+
+; flags
+WaterFlag_FlatSurface_Bit =		0	; flat surface: copy Water_palette whole with HInt2, like Hydrocity
+WaterFlag_NoKnuckles_Bit =		1	; no water for player modes 3+ (Knuckles)
+WaterFlag_NoKnucklesAtActStart_Bit =	2	; with NoKnuckles: only when the act is started directly
+						; (Apparent_zone_and_act is this act), not when continued from the act before
+
+WaterFlag_FlatSurface =			1<<WaterFlag_FlatSurface_Bit
+WaterFlag_NoKnuckles =			1<<WaterFlag_NoKnuckles_Bit
+WaterFlag_NoKnucklesAtActStart =	1<<WaterFlag_NoKnucklesAtActStart_Bit
+
+waterlevel macro zoneact,flags,palid,transition,knuxcolors
+		dc.w	zoneact
+		dc.b	flags,palid
+		dc.l	transition,knuxcolors
+	endm
+
+WaterSettings_Flags =		2
+WaterSettings_PalID =		3
+WaterSettings_Transition =	4
+WaterSettings_KnuxColors =	8
+WaterSettings_Size =		$C
+
+WaterSettings:
+		waterlevel $000, 0, PalID_AIZ_Water, WaterTransition_AIZ1, Pal_WaterKnux+0*6
+		waterlevel $001, WaterFlag_NoKnuckles|WaterFlag_NoKnucklesAtActStart, PalID_AIZ2_Water, WaterTransition_AIZ2, Pal_WaterKnux+0*6
+		waterlevel $100, WaterFlag_FlatSurface, PalID_HCZ1_Water, WaterTransition_HCZLBZ1, Pal_WaterKnux+1*6
+		waterlevel $101, WaterFlag_FlatSurface, PalID_HCZ2_Water, WaterTransition_HCZLBZ1, Pal_WaterKnux+1*6
+		waterlevel $301, WaterFlag_NoKnuckles, PalID_CNZ_Water, WaterTransition_CNZ2ICZ2, Pal_WaterKnux+3*6
+		waterlevel $501, 0, PalID_ICZ2_Water, WaterTransition_CNZ2ICZ2, Pal_WaterKnux+5*6
+		; Launch Base 1 has an underwater palette, but no water in the original game:
+		;waterlevel $600, 0, PalID_LBZ_Water, WaterTransition_HCZLBZ1, Pal_WaterKnux+6*6
+		waterlevel $601, 0, PalID_LBZ2_Water, WaterTransition_LBZ2, Pal_WaterKnux+6*6
+		dc.w	-1	; end of list
+
+; ---------------------------------------------------------------------------
+; Finds the current act in WaterSettings
+; Output: a1 = entry; Z flag is set if the act has no entry
+; ---------------------------------------------------------------------------
+
+GetWaterSettings:
+		lea	(WaterSettings).l,a1
+		move.w	(Current_zone_and_act).w,d0
+
+.loop:
+		move.w	(a1),d1
+		bmi.s	.notFound			; reached the end of the list
+		cmp.w	d1,d0
+		beq.s	.found
+		lea	WaterSettings_Size(a1),a1
+		bra.s	.loop
+; ---------------------------------------------------------------------------
+
+.found:
+		moveq	#1,d1				; clear Z
+		rts
+; ---------------------------------------------------------------------------
+
+.notFound:
+		moveq	#0,d1				; set Z
+		rts
+; End of function GetWaterSettings
+
+
+; =============== S U B R O U T I N E =======================================
+
+
 CheckLevelForWater:
-		cmpi.w	#0,(Current_zone_and_act).w
-		beq.s	loc_78F2
-		cmpi.w	#1,(Current_zone_and_act).w
-		bne.s	loc_78B2
-		cmpi.w	#1,(Apparent_zone_and_act).w
-		bne.s	loc_78F2
+		bsr.s	GetWaterSettings
+		beq.s	CheckLevelForWater_NoWater	; if the act isn't in the table, branch
+		move.b	WaterSettings_Flags(a1),d1
+		btst	#WaterFlag_NoKnuckles_Bit,d1
+		beq.s	loc_78F2			; if the act has water for every character, branch
 		cmpi.w	#3,(Player_mode).w
-		blo.s	loc_78F2	; Blue Knuckles fix: treat player modes 3+ as Knuckles
+		blo.s	loc_78F2			; if not Knuckles (player modes 3+), branch
+		btst	#WaterFlag_NoKnucklesAtActStart_Bit,d1
+		beq.s	CheckLevelForWater_NoWater	; if Knuckles never has water here, branch
+		move.w	(Apparent_zone_and_act).w,d0
+		cmp.w	(Current_zone_and_act).w,d0
+		bne.s	loc_78F2			; if continued from the act before, branch
 
-loc_78B2:
-		cmpi.b	#1,(Current_zone).w
-		beq.s	loc_78F2
-		cmpi.w	#$301,(Current_zone_and_act).w
-		bne.s	loc_78CA
-		cmpi.w	#3,(Player_mode).w
-		blo.s	loc_78F2	; Blue Knuckles fix: treat player modes 3+ as Knuckles
-
-loc_78CA:
-		cmpi.w	#$501,(Current_zone_and_act).w
-		beq.s	loc_78F2
-		cmpi.w	#$601,(Current_zone_and_act).w
-		beq.s	loc_78F2
+CheckLevelForWater_NoWater:
 		move.w	#$1000,d0
 		move.w	d0,(Water_level).w
 		move.w	d0,(Mean_water_level).w
@@ -9793,15 +9861,14 @@ loc_78F2:
 		beq.s	LoadWaterPalette
 		move.w	#$4EF9,(H_int_jump).w
 		move.l	#HInt2,(H_int_addr).w
-		cmpi.b	#1,(Current_zone).w
-		beq.s	loc_7932
+		btst	#WaterFlag_FlatSurface_Bit,WaterSettings_Flags(a1)
+		bne.s	loc_7932			; if the water surface is flat, branch
 		move.l	#HInt3,(H_int_addr).w
 		cmpi.w	#$1000,(V_blank_cycles).w
 		blo.s	loc_7932
 		move.l	#HInt4,(H_int_addr).w
 
 loc_7932:
-		move.l	#WaterTransition_AIZ1,(Water_palette_data_addr).w
 		moveq	#0,d0
 		move.w	(Current_zone_and_act).w,d0
 		ror.b	#1,d0
@@ -9824,40 +9891,12 @@ loc_7932:
 LoadWaterPalette:
 		tst.b	(Water_flag).w
 		beq.w	locret_7A20
-		moveq	#PalID_AIZ_Water,d0
-		cmpi.w	#0,(Current_zone_and_act).w
-		beq.w	loc_7A00
-		moveq	#PalID_AIZ2_Water,d0
-		move.l	#WaterTransition_AIZ2,(Water_palette_data_addr).w
-		cmpi.w	#1,(Current_zone_and_act).w
-		beq.s	loc_7A00
-		moveq	#PalID_HCZ1_Water,d0
-		move.l	#WaterTransition_HCZLBZ1,(Water_palette_data_addr).w
-		cmpi.w	#$100,(Current_zone_and_act).w
-		beq.s	loc_7A00
-		moveq	#PalID_HCZ2_Water,d0
-		move.l	#WaterTransition_HCZLBZ1,(Water_palette_data_addr).w
-		cmpi.w	#$101,(Current_zone_and_act).w
-		beq.s	loc_7A00
-		moveq	#PalID_CNZ_Water,d0
-		move.l	#WaterTransition_CNZ2ICZ2,(Water_palette_data_addr).w
-		cmpi.w	#$301,(Current_zone_and_act).w
-		beq.s	loc_7A00
-		moveq	#PalID_ICZ2_Water,d0
-		move.l	#WaterTransition_CNZ2ICZ2,(Water_palette_data_addr).w
-		cmpi.w	#$501,(Current_zone_and_act).w
-		beq.s	loc_7A00
-		moveq	#PalID_LBZ_Water,d0
-		move.l	#WaterTransition_HCZLBZ1,(Water_palette_data_addr).w
-		cmpi.w	#$600,(Current_zone_and_act).w
-		beq.s	loc_7A00
-		moveq	#PalID_LBZ2_Water,d0
-		move.l	#WaterTransition_LBZ2,(Water_palette_data_addr).w
-		cmpi.w	#$601,(Current_zone_and_act).w
-		beq.s	loc_7A00
-		nop
-
-loc_7A00:
+		bsr.w	GetWaterSettings
+		beq.w	locret_7A20			; if the act isn't in the table, branch
+		move.l	WaterSettings_Transition(a1),(Water_palette_data_addr).w
+		move.l	WaterSettings_KnuxColors(a1),-(sp)
+		moveq	#0,d0
+		move.b	WaterSettings_PalID(a1),d0
 		move.w	d0,d1
 		bsr.w	LoadPalette2
 		move.w	d1,d0
@@ -9867,21 +9906,17 @@ loc_7A00:
 		move.b	(Saved_water_full_screen_flag).w,(Water_full_screen_flag).w
 
 loc_7A18:
+		movea.l	(sp)+,a1			; Knuckles' underwater colors
 		cmpi.w	#3,(Player_mode).w
-		beq.s	loc_7A22	; Blue Knuckles: only player mode 3 uses Knuckles' red palette
+		bne.s	locret_7A20	; Blue Knuckles: only player mode 3 uses Knuckles' red palette
+		move.l	a1,d0
+		bne.s	loc_7A22			; if the act has Knuckles' colors, branch
 
 locret_7A20:
 		rts
 ; ---------------------------------------------------------------------------
 
 loc_7A22:
-		moveq	#0,d0
-		move.b	(Current_zone).w,d0
-		move.w	d0,d1
-		add.w	d0,d0
-		add.w	d1,d0
-		add.w	d0,d0
-		lea	Pal_WaterKnux(pc,d0.w),a1
 		move.l	(a1),(Water_palette+$4).w
 		move.w	4(a1),(Water_palette+$8).w
 		move.l	(a1),(Target_water_palette+$4).w
