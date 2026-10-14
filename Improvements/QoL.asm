@@ -48,3 +48,23 @@ ExtraLives_Count:
 		move	#4,ccr				; Z=1
 		rts
 ; End of function ExtraLives_Check
+
+; ---------------------------------------------------------------------------
+; FeatureInvincibilityFlash: the invincibility stars blink during the last
+; two seconds, as in s1_improvements and s2_improvements.
+; a1 = the player the stars belong to.
+; ---------------------------------------------------------------------------
+
+InvStars_Draw:
+		cmpi.b	#(2*60)/8,invincibility_timer(a1)	; counted down every 8 frames
+		bhi.s	.show
+		btst	#2,(Level_frame_counter+1).w	; all the stars blink together
+		bne.s	.hide
+
+.show:
+		jmp	(Draw_Sprite).l
+; ---------------------------------------------------------------------------
+
+.hide:
+		rts
+; End of function InvStars_Draw

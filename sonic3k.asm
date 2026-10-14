@@ -64,8 +64,10 @@ FeatureExtendedCamera = 1
 ;	| Let the camera look ahead of the player at speed and while charging a Spin Dash
 FeatureExtraLives = 1
 ;	| An extra life for every 100 rings; 0 = only at 100 and 200 rings
+FeatureInvincibilityFlash = 1
+;	| The invincibility stars blink during their last two seconds
 
-	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera|FeatureExtraLives)&~1
+	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera|FeatureExtraLives|FeatureInvincibilityFlash)&~1
 		error "Feature options must be 0 or 1"
 	endif
 
@@ -34453,7 +34455,11 @@ loc_188B0:
 
 loc_188E0:
 		add.b	d0,$34(a0)
+	if FeatureInvincibilityFlash
+		jmp	(InvStars_Draw).l		; blink before running out
+	else
 		bra.w	Draw_Sprite
+	endif
 ; ---------------------------------------------------------------------------
 
 Obj_188E8:
@@ -34513,7 +34519,11 @@ loc_18946:
 
 loc_18982:
 		add.b	d0,$34(a0)
+	if FeatureInvincibilityFlash
+		jmp	(InvStars_Draw).l		; blink before running out
+	else
 		bra.w	Draw_Sprite
+	endif
 
 ; =============== S U B R O U T I N E =======================================
 
