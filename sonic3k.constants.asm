@@ -388,7 +388,8 @@ LightDash_exit_x		ds.w 1			; the momentum kept when the chain ends
 LightDash_exit_y		ds.w 1
 LightDash_layout		ds.l 1			; the level's ring layout
 LightDash_RAM_end =		*
-			ds.b $44-(LightDash_RAM_end-LightDash_RAM)	; unused
+PeelOut_charging		ds.b 1			; set while player 1 charges a Super Peel-Out (FeaturePeelOut)
+			ds.b $44-(LightDash_RAM_end-LightDash_RAM)-1	; unused
 Saved_data :=			*		; S3 uses a different address
 				ds.b $54		; saved data from 1 player mode
 Ring_status_table		ds.b $400		; 1 word per ring

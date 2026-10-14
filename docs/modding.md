@@ -19,6 +19,7 @@ The `Feature*` switches in `sonic3k.asm` turn this project's gameplay additions 
 | `FeatureSmoothSlots` | The Slots bonus stage rotates in 64 steps again. |
 | `FeatureBlueKnuckles` | The Level Select character number stops at 03. The fixes that keep player modes above 3 working stay in. |
 | `FeatureLightDash` | A in the air always does the normal air move; rings never start a Light Dash. |
+| `FeaturePeelOut` | Up + A/B/C while standing jumps, as in the original game. |
 
 Two optional alternatives are off by default; 1 enables them:
 
@@ -47,6 +48,10 @@ Targets come from `Collision_response_list`, so only objects that could be touch
 With `FeatureLightDash`, a fresh A press in the air (`Player_LightDashStart`, first in every air mode of Sonic, Tails and Knuckles) next to a chain of at least three uncollected rings dashes the player along it, as in Sonic 1 and Sonic 2 Improvements. B and C never start it, and A alone on the ground still jumps. Without a chain the press falls through to the normal air move: the Air Roll, the Jump Dash or Homing Attack, Tails' flight or Knuckles' glide. It is not started from a flight, a glide or a shield move (`double_jump_flag` set), by the sidekick, in Competition mode, the Competition zones or the bonus stages, under reverse gravity, or while control is locked or an object holds the player.
 
 The first ring must lie ahead within 64 pixels; each next one within 72 pixels of the last ring reached. The targets are the level's ring layout itself (`RingLocPtrs`, the same index as `Ring_status_table`), so rings outside the screen count too and the chain is found the same way in every zone. The dash moves at speed $C (6 underwater) in eight substeps a frame with the normal level collision, follows the ground when a link runs along it, collects each ring like `Test_Ring_Collisions` and attacks badniks (`LightDash_Attacking` in `Touch_Enemy`). It ends when the chain does, keeping the last ring-to-ring direction at full speed; or when it is blocked for three frames, after 384 frames, on a hit or a death, or in a new act. The player straightens up from a roll and shows the running frames turned along the dash: the animation borrows `angle` and `ground_vel` for one call (`LightDash_Animate_*`) and gives them back. The state lives in the `LightDash_*` bytes after `Emerald_flicker_flag`, which were unused.
+
+## Super Peel-Out
+
+With `FeaturePeelOut`, Sonic standing still holds Up and presses A, B or C to charge a Super Peel-Out (`Sonic_PeelOut`, first in `Sonic_MdNormal`), as in Sonic 1 and Sonic 2 Improvements. The charge grows by 100 a frame up to twice `Max_speed`, at most $1000; letting go of Up launches an upright run at that speed, and a charge under $600 is cancelled without a jump. Like Sonic 2, Sonic 3 & Knuckles has no figure-eight frames or Peel-Out sounds, so Sonic runs the normal run cycle on the spot at the charged speed with the Spin Dash sounds, and the extended camera looks ahead as for a Spin Dash. The charge is kept in `spin_dash_counter`, and `PeelOut_charging` (after the Light Dash bytes) marks it for player 1. Landing, a hit, a death or a new level ends it. Tails and Knuckles, the demos and Competition mode are unchanged.
 
 ## Bug fixes
 

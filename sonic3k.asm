@@ -72,6 +72,8 @@ FeatureSpecialStageSelect = 1
 ;	| Left/Right on SPECIAL STAGE in the Level Select choose the stage
 FeatureLightDash = 1
 ;	| In the air, A next to a chain of 3+ rings dashes along it (Sonic, Tails and Knuckles)
+FeaturePeelOut = 1
+;	| Standing still, hold Up and press A/B/C to charge a Super Peel-Out (Sonic)
 
 ; Optional alternatives, off by default.
 FeatureInfiniteLives = 0
@@ -79,7 +81,7 @@ FeatureInfiniteLives = 0
 FeatureCDDrowning = 0
 ;	| If 1, low air beeps every second as in Sonic CD instead of playing the countdown music
 
-	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera|FeatureExtraLives|FeatureInvincibilityFlash|FeatureFastSoundTest|FeatureSpecialStageSelect|FeatureLightDash|FeatureInfiniteLives|FeatureCDDrowning)&~1
+	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera|FeatureExtraLives|FeatureInvincibilityFlash|FeatureFastSoundTest|FeatureSpecialStageSelect|FeatureLightDash|FeaturePeelOut|FeatureInfiniteLives|FeatureCDDrowning)&~1
 		error "Feature options must be 0 or 1"
 	endif
 
@@ -16017,6 +16019,7 @@ Write_SaveGame:
 		include "Improvements/DebugHud.asm"
 		include "Improvements/QoL.asm"
 		include "Improvements/LightDash.asm"
+		include "Improvements/PeelOut.asm"
 
 ; ---------------------------------------------------------------------------
 SaveGame_NextLevel:
@@ -21323,6 +21326,9 @@ HurtCharacter:
 	if FeatureLightDash
 		jsr	(LightDash_PlayerHit).l		; a hit ends the Light Dash
 	endif
+	if FeaturePeelOut
+		jsr	(PeelOut_Cancel).l		; and a Peel-Out charge
+	endif
 		move.w	(Ring_count).w,d0
 		cmpa.w	#Player_1,a0
 		beq.s	loc_102A8
@@ -21398,6 +21404,9 @@ Kill_Character:
 		bne.w	Cheat_GodRescue			; a pit bounces the player back up instead
 	if FeatureLightDash
 		jsr	(LightDash_PlayerHit).l		; a death ends the Light Dash
+	endif
+	if FeaturePeelOut
+		jsr	(PeelOut_Cancel).l		; and a Peel-Out charge
 	endif
 		tst.w	(Debug_placement_mode).w
 		bne.s	loc_103B6
@@ -22566,6 +22575,9 @@ loc_10F22:
 ; ---------------------------------------------------------------------------
 
 Sonic_MdNormal:
+	if FeaturePeelOut
+		jsr	(Sonic_PeelOut).l		; Up + A/B/C charges a Super Peel-Out
+	endif
 		bsr.w	SonicKnux_Spindash
 		bsr.w	Sonic_Jump
 		bsr.w	Player_SlopeResist
@@ -22797,8 +22809,14 @@ Player_PanCamera:
 		moveq	#0,d0				; no speed: ease back to the centre
 		tst.b	object_control(a0)		; is an object or cutscene moving the player?
 		bmi.s	.speedReady			; if so, branch
+	if FeaturePeelOut
+		tst.b	(PeelOut_charging).w		; charging a Super Peel-Out?
+		bne.s	.charging
+	endif
 		tst.b	spin_dash_flag(a0)		; charging a Spin Dash?
 		beq.s	.readSpeed
+
+.charging:
 		btst	#Status_Facing,status(a0)	; look the way it will launch
 		bne.s	.panLeft
 		bra.s	.panRight
@@ -24977,6 +24995,9 @@ Player_TouchFloor:
 		beq.w	Tails_TouchFloor
 		cmpi.b	#2,character_id(a0)
 		beq.w	Knux_TouchFloor
+	if FeaturePeelOut
+		jsr	(PeelOut_Cancel).l		; landing ends a Peel-Out charge
+	endif
 
 		move.b	y_radius(a0),d0
 		move.b	default_y_radius(a0),y_radius(a0)
@@ -38954,6 +38975,9 @@ Get_LevelSizeStart:
 	if FeatureLightDash
 		clr.b	(LightDash_active).w
 		clr.b	(LightDash_hitframe).w
+	endif
+	if FeaturePeelOut
+		clr.b	(PeelOut_charging).w
 	endif
 		clr.b	(Deform_lock).w
 		clr.b	(_unkEE08).w
