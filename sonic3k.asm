@@ -2907,39 +2907,41 @@ SineTable:
 
 
 GetArcTan:
-		movem.l	d3-d4,-(sp)
-		moveq	#0,d3
-		moveq	#0,d4
+		; Faster version, as in s1_improvements and s2_improvements (after
+		; "Improving CalcAngle subroutines"): same angles; d1-d7 and all
+		; address registers are kept.
+		move.l	d3,-(sp)
+		moveq	#0,d3		; clear the upper word for the 32-bit shift below
 		move.w	d1,d3
-		move.w	d2,d4
-		or.w	d3,d4
-		beq.s	GetArcTan_Zero	; special case when both x and y are zero
-		move.w	d2,d4
-		tst.w	d3
 		bpl.s	+
-		neg.w	d3
+		neg.w	d3		; |x|
 
 +
-		tst.w	d4
+		moveq	#0,d0		; clear the upper word for the 32-bit shift below
+		move.w	d2,d0
 		bpl.s	+
-		neg.w	d4
+		neg.w	d0		; |y|
 
 +
-		cmp.w	d3,d4
-		bhs.s	+	; if |y| >= |x|
-		lsl.l	#8,d4
-		divu.w	d3,d4
+		cmp.w	d3,d0
+		bhs.s	GetArcTan_YIsBigger	; if |y| >= |x|
+		lsl.l	#8,d0		; x is nonzero here
+		divu.w	d3,d0		; quotient < $100
+		move.w	d0,d3
 		moveq	#0,d0
-		move.b	ArcTanTable(pc,d4.w),d0
-		bra.s	++
+		move.b	ArcTanTable(pc,d3.w),d0
+		bra.s	GetArcTan_Quadrant
+; ---------------------------------------------------------------------------
 
-+
+GetArcTan_YIsBigger:
+		tst.w	d0
+		beq.s	GetArcTan_Zero	; special case when both x and y are zero
 		lsl.l	#8,d3
-		divu.w	d4,d3
+		divu.w	d0,d3		; quotient <= $100
 		moveq	#$40,d0
 		sub.b	ArcTanTable(pc,d3.w),d0	; arctan(y/x) = 90 - arctan(x/y)
 
-+
+GetArcTan_Quadrant:
 		tst.w	d1
 		bpl.s	+
 		neg.w	d0
@@ -2952,13 +2954,13 @@ GetArcTan:
 		addi.w	#$100,d0	; place angle in appropriate quadrant
 
 +
-		movem.l	(sp)+,d3-d4
+		movem.l	(sp)+,d3	; movem keeps the condition codes
 		rts
 ; ---------------------------------------------------------------------------
 
 GetArcTan_Zero:
-		move.w	#$40,d0	; angle = 90 degrees
-		movem.l	(sp)+,d3-d4
+		moveq	#$40,d0	; angle = 90 degrees
+		movem.l	(sp)+,d3
 		rts
 ; End of function GetArcTan
 
@@ -15829,6 +15831,7 @@ Write_SaveGame:
 		include "Improvements/DebugHud.asm"
 		include "Improvements/QoL.asm"
 		include "Improvements/Decompression.asm"
+		include "Improvements/Math.asm"
 		include "Improvements/LightDash.asm"
 		include "Improvements/PeelOut.asm"
 
@@ -24511,9 +24514,7 @@ loc_11F00:
 		move.b	lrb_solid_bit(a0),d5
 		move.w	x_vel(a0),d1
 		move.w	y_vel(a0),d2
-		jsr	(GetArcTan).l
-		subi.b	#$20,d0
-		andi.b	#$C0,d0
+		jsr	(CalcAirQuadrant).l	; (GetArcTan-$20)&$C0 without a division
 		cmpi.b	#$40,d0
 		beq.w	Player_HitLeftWall
 		cmpi.b	#$80,d0
@@ -29425,9 +29426,7 @@ loc_153D6:
 		move.b	lrb_solid_bit(a0),d5
 		move.w	x_vel(a0),d1
 		move.w	y_vel(a0),d2
-		jsr	(GetArcTan).l
-		subi.b	#$20,d0
-		andi.b	#$C0,d0
+		jsr	(CalcAirQuadrant).l	; (GetArcTan-$20)&$C0 without a division
 		cmpi.b	#$40,d0
 		beq.w	loc_154AC
 		cmpi.b	#$80,d0
@@ -33223,9 +33222,7 @@ loc_17952:
 		move.b	lrb_solid_bit(a0),d5
 		move.w	x_vel(a0),d1
 		move.w	y_vel(a0),d2
-		jsr	(GetArcTan).l
-		subi.b	#$20,d0
-		andi.b	#$C0,d0
+		jsr	(CalcAirQuadrant).l	; (GetArcTan-$20)&$C0 without a division
 		cmpi.b	#$40,d0
 		beq.w	loc_179DA
 		cmpi.b	#$80,d0
@@ -72872,9 +72869,7 @@ loc_3527E:
 		move.b	lrb_solid_bit(a0),d5
 		move.w	x_vel(a0),d1
 		move.w	y_vel(a0),d2
-		jsr	(GetArcTan).l
-		subi.b	#$20,d0
-		andi.b	#$C0,d0
+		jsr	(CalcAirQuadrant).l	; (GetArcTan-$20)&$C0 without a division
 		cmpi.b	#$40,d0
 		beq.w	loc_3536E
 		cmpi.b	#$80,d0
