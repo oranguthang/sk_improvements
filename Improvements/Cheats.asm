@@ -347,3 +347,116 @@ LevelSelect_CheatsItemText_End:
 	if (CheatsPage_Vars_End-CheatsPage_Vars)<>cheats_rows*2
 		error "CheatsPage_Vars needs one entry per row"
 	endif
+
+; ---------------------------------------------------------------------------
+; Cheat effects. None of them apply in title demos or Competition mode.
+; Every helper keeps all registers.
+; ---------------------------------------------------------------------------
+
+; Z clear when a cheat may apply now: not a demo, not Competition mode.
+Cheat_Allowed:
+		tst.w	(Demo_mode_flag).w
+		bne.s	.no
+		tst.w	(Competition_mode).w
+		bne.s	.no
+		move	#0,ccr				; Z=0
+		rts
+; ---------------------------------------------------------------------------
+
+.no:
+		move	#4,ccr				; Z=1
+		rts
+; End of function Cheat_Allowed
+
+; ---------------------------------------------------------------------------
+; ALL EMERALDS: replaces "cmpi.b #7,(Chaos_emerald_count).w" and the same for
+; Super_emerald_count where the game decides on Super/Hyper forms, giant
+; rings and the Doomsday Zone. With the cheat the flags are those of an
+; equal compare (all seven); the real counts are never changed.
+; ---------------------------------------------------------------------------
+
+Cheat_CmpChaosEmeralds:
+		tst.b	(Cheat_all_emeralds).w
+		beq.s	.real
+		bsr.s	Cheat_Allowed
+		beq.s	.real
+		move	#4,ccr				; Z=1: all seven
+		rts
+; ---------------------------------------------------------------------------
+
+.real:
+		cmpi.b	#7,(Chaos_emerald_count).w
+		rts
+; End of function Cheat_CmpChaosEmeralds
+
+Cheat_CmpSuperEmeralds:
+		tst.b	(Cheat_all_emeralds).w
+		beq.s	.real
+		bsr.s	Cheat_Allowed
+		beq.s	.real
+		move	#4,ccr				; Z=1: all seven
+		rts
+; ---------------------------------------------------------------------------
+
+.real:
+		cmpi.b	#7,(Super_emerald_count).w
+		rts
+; End of function Cheat_CmpSuperEmeralds
+
+; ---------------------------------------------------------------------------
+; SUPER RINGS: replaces "cmpi.w #50,(Ring_count).w" in the transformation
+; checks with the flags of Ring_count minus the chosen threshold.
+; ---------------------------------------------------------------------------
+
+Cheat_CmpSuperRings:
+		movem.l	d0-d1,-(sp)			; movem leaves the flags alone
+		moveq	#0,d1
+		move.b	(Cheat_super_rings).w,d1
+		move.w	(Ring_count).w,d0
+		cmp.w	d1,d0
+		movem.l	(sp)+,d0-d1
+		rts
+; End of function Cheat_CmpSuperRings
+
+; ---------------------------------------------------------------------------
+; GOD MODE: Z clear when nothing may hurt or kill the players
+; ---------------------------------------------------------------------------
+
+Cheat_GodMode:
+		tst.b	(Cheat_god_mode).w
+		beq.s	.return				; Z=1: off
+		bra.s	Cheat_Allowed
+
+.return:
+		rts
+; End of function Cheat_GodMode
+
+; ---------------------------------------------------------------------------
+; GOD MODE instead of a death: below the bottom of the level the player
+; bounces back up as an airborne, non-jumping player, so Left/Right can steer
+; him back onto solid ground, as in s1_improvements; any other death is
+; ignored. a0 = player. Returns d0 = -1 as for a collision already handled.
+; ---------------------------------------------------------------------------
+
+Cheat_GodRescue:
+		tst.b	(Reverse_gravity_flag).w
+		bne.s	.return
+		move.w	(Camera_max_Y_pos).w,d0
+		addi.w	#$E0,d0
+		cmp.w	y_pos(a0),d0			; below the bottom boundary?
+		bge.s	.return
+		move.w	d0,y_pos(a0)			; back on the boundary
+		move.w	#-$A00,y_vel(a0)		; about one screen high
+		btst	#Status_Underwater,status(a0)
+		beq.s	.dry
+		move.w	#-$500,y_vel(a0)		; less is enough under water
+
+.dry:
+		bset	#Status_InAir,status(a0)
+		clr.b	jumping(a0)			; releasing the button must not cut the bounce
+		move.b	#2,routine(a0)			; back to normal control if he fell while hurt
+
+.return:
+		moveq	#-1,d0
+		rts
+; End of function Cheat_GodRescue

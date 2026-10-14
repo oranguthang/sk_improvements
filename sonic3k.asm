@@ -7695,10 +7695,13 @@ loc_60DE:
 		move.w	#$9200,(a6)
 		move.w	#$8720,(a6)
 		move.w	#$8C81,(a6)
+		; DEBUG (Debug_cheat_flag) makes debug mode available in every level without
+		; holding A, as in s1_improvements and s2_improvements; never in a demo
+		clr.w	(Debug_mode_flag).w
 		tst.b	(Debug_cheat_flag).w
 		beq.s	loc_6182
-		btst	#button_A,(Ctrl_1).w
-		beq.s	loc_6182
+		tst.w	(Demo_mode_flag).w
+		bne.s	loc_6182
 		move.b	#1,(Debug_mode_flag).w
 
 loc_6182:
@@ -17833,7 +17836,13 @@ loc_DD64:
 		bne.s	loc_DDBE
 		lea	(Timer).w,a1
 		cmpi.l	#(9<<16)|(59<<8)|59,(a1)+
-		beq.w	UpdateHUD_TimeOver
+		bne.s	.counting
+		jsr	(Cheat_GodMode).l		; GOD MODE: the clock stops at 9:59
+		bne.w	loc_DDBE
+		bra.w	UpdateHUD_TimeOver
+; ---------------------------------------------------------------------------
+
+.counting:
 		addq.b	#1,-(a1)
 		cmpi.b	#60,(a1)
 		blo.s	loc_DDBE
@@ -21222,6 +21231,13 @@ Touch_Hurt:
 
 
 HurtCharacter:
+		jsr	(Cheat_GodMode).l		; GOD MODE: nothing hurts the players
+		beq.s	.hurt
+		moveq	#-1,d0
+		rts
+; ---------------------------------------------------------------------------
+
+.hurt:
 		move.w	(Ring_count).w,d0
 		cmpa.w	#Player_1,a0
 		beq.s	loc_102A8
@@ -21293,6 +21309,8 @@ loc_10364:
 ; ---------------------------------------------------------------------------
 
 Kill_Character:
+		jsr	(Cheat_GodMode).l		; GOD MODE: no deaths
+		bne.w	Cheat_GodRescue			; a pit bounces the player back up instead
 		tst.w	(Debug_placement_mode).w
 		bne.s	loc_103B6
 		moveq	#signextendB(sfx_Death),d0
@@ -23806,15 +23824,15 @@ Sonic_BubbleShield:
 ; ---------------------------------------------------------------------------
 
 Sonic_CheckTransform:
-		cmpi.b	#7,(Super_emerald_count).w	; does Sonic have all 7 Super Emeralds?
+		jsr	(Cheat_CmpSuperEmeralds).l	; does Sonic have all 7 Super Emeralds?
 		bhs.s	loc_119E8			; if yes, branch
-		cmpi.b	#7,(Chaos_emerald_count).w	; does Sonic have all 7 Chaos Emeralds?
+		jsr	(Cheat_CmpChaosEmeralds).l	; does Sonic have all 7 Chaos Emeralds?
 		blo.s	Sonic_InstaShield		; if not, branch
 		tst.b	(Emeralds_converted_flag).w
 		bne.s	Sonic_InstaShield
 
 loc_119E8:
-		cmpi.w	#50,(Ring_count).w	; does Sonic have at least 50 rings?
+		jsr	(Cheat_CmpSuperRings).l	; does Sonic have at least 50 rings?
 		blo.s	Sonic_InstaShield	; if not, perform Insta-Shield
 		tst.b	(Update_HUD_timer).w
 		bne.w	Sonic_Transform
@@ -23988,7 +24006,7 @@ Sonic_Transform:
 		move.l	#Map_SuperSonic,mappings(a0)
 		move.b	#$81,object_control(a0)
 		move.b	#$1F,anim(a0)				; enter 'transformation' animation
-		cmpi.b	#7,(Super_emerald_count).w		; does Sonic have all 7 Super Emeralds?
+		jsr	(Cheat_CmpSuperEmeralds).l		; does Sonic have all 7 Super Emeralds?
 		blo.s	.super					; if not, turn Super
 
 		move.b	#-1,(Super_Sonic_Knux_flag).w		; set flag to Hyper Sonic
@@ -24090,6 +24108,8 @@ SonicKnux_SuperHyper:
 		bpl.w	.return
 	endif
 		move.w	#60,(Super_frame_count).w
+		tst.b	(Cheat_ring_drain).w		; RING DRAIN off?
+		beq.w	.return				; then the form lasts until the act ends
 		tst.w	(Ring_count).w
 		beq.s	.revertToNormal	; If rings depleted, return to normal
 		; This checks if the ring counter needs to be blanked
@@ -29188,9 +29208,9 @@ Tails_Test_For_Flight:
 		bne.s	loc_15156
 		tst.b	(Super_Tails_flag).w
 		bne.s	loc_1515C
-		cmpi.b	#7,(Super_emerald_count).w
+		jsr	(Cheat_CmpSuperEmeralds).l
 		blo.s	loc_1515C
-		cmpi.w	#50,(Ring_count).w
+		jsr	(Cheat_CmpSuperRings).l
 		blo.s	loc_1515C
 		tst.b	(Update_HUD_timer).w
 		bne.s	Tails_Transform
@@ -33143,15 +33163,15 @@ Knux_Test_For_Glide:
 		beq.w	locret_178CC
 		tst.b	(Super_Sonic_Knux_flag).w
 		bne.s	loc_1786C
-		cmpi.b	#7,(Super_emerald_count).w
+		jsr	(Cheat_CmpSuperEmeralds).l
 		bhs.s	loc_1785E
-		cmpi.b	#7,(Chaos_emerald_count).w
+		jsr	(Cheat_CmpChaosEmeralds).l
 		blo.s	loc_1786C
 		tst.b	(Emeralds_converted_flag).w
 		bne.s	loc_1786C
 
 loc_1785E:
-		cmpi.w	#50,(Ring_count).w
+		jsr	(Cheat_CmpSuperRings).l
 		blo.s	loc_1786C
 		tst.b	(Update_HUD_timer).w
 		bne.s	Knux_Transform
@@ -33193,7 +33213,7 @@ Knux_Transform:
 		move.w	#60,(Super_frame_count).w
 		move.b	#$81,object_control(a0)
 		move.b	#$1F,anim(a0)				; enter 'transformation' animation
-		cmpi.b	#7,(Super_emerald_count).w		; does Knuckles have all 7 Super Emeralds?
+		jsr	(Cheat_CmpSuperEmeralds).l		; does Knuckles have all 7 Super Emeralds?
 		blo.s	.super					; if not, turn Super
 
 		move.b	#-1,(Super_Sonic_Knux_flag).w		; set flag to Hyper Knuckles
@@ -34096,6 +34116,13 @@ AirCountdown_Countdown:
 		bne.w	locret_18680
 		tst.b	(Super_Sonic_Knux_flag).w
 		bmi.w	locret_18680
+		jsr	(Cheat_GodMode).l		; GOD MODE: the air never runs out
+		beq.s	.breathes
+		move.b	#30,air_left(a2)
+		bra.w	locret_18680
+; ---------------------------------------------------------------------------
+
+.breathes:
 		btst	#Status_Underwater,status(a2)
 		beq.w	locret_18680
 		subq.w	#1,$3C(a0)
@@ -127605,10 +127632,10 @@ sub_5FE82:
 		move.l	d0,(a1)+
 		move.l	d0,(a1)+
 		moveq	#2,d0
-		cmpi.b	#7,(Super_emerald_count).w
+		jsr	(Cheat_CmpSuperEmeralds).l
 		beq.s	loc_5FEA2
 		moveq	#0,d0
-		cmpi.b	#7,(Chaos_emerald_count).w
+		jsr	(Cheat_CmpChaosEmeralds).l
 		beq.s	loc_5FEA2
 		moveq	#-2,d0
 
@@ -129008,7 +129035,7 @@ SSEntryRing_Init:
 		bne.s	SSEntryRing_Main			; If only Sonic & Knuckles, skip ahead
 		bsr.w	SSEntry_CheckLevel
 		beq.s	SSEntryRing_Main			; If in an S3 level, skip ahead since it's a normal ring
-		cmpi.b	#7,(Chaos_emerald_count).w
+		jsr	(Cheat_CmpChaosEmeralds).l
 		bne.s	SSEntryRing_Main			; Only make this a Super Emerald ring if you actually have 7 Chaos Emeralds
 
 loc_616C6:
@@ -129043,13 +129070,13 @@ loc_6170A:
 		bhs.s	locret_61708		; If player has died for whatever reason, don't do anything
 		moveq	#signextendB(sfx_BigRing),d0
 		jsr	(Play_SFX).l		; Play the ring swish sound
-		cmpi.b	#7,(Chaos_emerald_count).w
+		jsr	(Cheat_CmpChaosEmeralds).l
 		bne.s	loc_6173A			; If Chaos Emeralds aren't collected, branch
 		tst.w	(SK_alone_flag).w
 		bne.s	loc_61794			; If only Sonic & Knuckles and the emeralds are collected, go claim 50 rings
 		bsr.w	SSEntry_CheckLevel
 		beq.s	loc_61794			; Otherwise, only do so if on an S3 level
-		cmpi.b	#7,(Super_emerald_count).w
+		jsr	(Cheat_CmpSuperEmeralds).l
 		beq.s	loc_61794			; Only collect rings in an SK level if the Super Emeralds are collected as well
 
 loc_6173A:
@@ -129160,7 +129187,7 @@ SSEntryFlash_GoSS:
 		bne.s	loc_61892			; If SK alone, go directly to special stage
 		bsr.w	SSEntry_CheckLevel
 		beq.s	loc_61892			; Otherwise, do so if S3 levels
-		cmpi.b	#7,(Chaos_emerald_count).w
+		jsr	(Cheat_CmpChaosEmeralds).l
 		bne.s	loc_61892			; or if Chaos Emeralds aren't collected
 		bra.w	loc_618AC			; When conditions are met, go to HPZ
 ; ---------------------------------------------------------------------------
@@ -172325,7 +172352,7 @@ loc_803D6:
 		jsr	(Go_Delete_Sprite).l
 		cmpi.w	#2,(Player_mode).w
 		bhs.s	loc_8040C
-		cmpi.b	#7,(Chaos_emerald_count).w
+		jsr	(Cheat_CmpChaosEmeralds).l
 		bne.s	loc_8040C
 		move.w	#$C00,d0
 		jmp	(StartNewLevel).l
