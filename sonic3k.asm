@@ -22463,17 +22463,26 @@ loc_11056:
 AirRoll:
 		moveq	#button_A_mask|button_B_mask|button_C_mask,d0
 		and.b	(Ctrl_1_pressed_logical).w,d0	; is A, B, or C pressed?
+
+AirRoll_Check:
 		beq.s	.return			; if not, branch
 
 		cmpi.b	#2,anim(a0)		; already in ball animation?
 		beq.s	.enable_ability		; if yes, enable ability directly
 
-		bset	#Status_Roll,status(a0)	; set rolling flag (Z=1 if was not set, Z=0 if already set)
 		move.b	#2,anim(a0)		; enter ball animation
-		bne.s	.was_rolling		; if Status_Roll was already set, skip hitbox/y_pos adjustment
+		bset	#Status_Roll,status(a0)	; set rolling flag
+		bne.s	.was_rolling		; if it was already set, the hitbox is already ball-sized
+		move.b	y_radius(a0),d1
+		subi.b	#$E,d1			; how much shorter the ball is than the standing hitbox
+		ext.w	d1
 		move.b	#$E,y_radius(a0)	; set hitbox height to ball size
 		move.b	#7,x_radius(a0)		; set hitbox width to ball size
-		addq.w	#5,y_pos(a0)		; adjust Y for new height difference ($13-$E pixels)
+		tst.b	(Reverse_gravity_flag).w
+		beq.s	+
+		neg.w	d1
++
+		add.w	d1,y_pos(a0)		; keep the feet where they were
 
 .was_rolling:
 		move.b	#1,jumping(a0)		; set jump state for next press
@@ -22485,6 +22494,27 @@ AirRoll:
 .return:
 		rts
 ; End of function AirRoll
+
+; ---------------------------------------------------------------------------
+; Tails reads controller 2's logical buttons, which hold player 1's input when
+; he plays alone. The AI's jump presses never start an Air Roll.
+; ---------------------------------------------------------------------------
+
+AirRoll_Tails:
+		cmpi.w	#2,(Player_mode).w	; is Tails playing alone?
+		beq.s	.human			; if so, branch
+		tst.w	(Tails_CPU_idle_timer).w	; has player 2 taken control?
+		beq.s	.return			; if not, branch
+
+.human:
+		moveq	#button_A_mask|button_B_mask|button_C_mask,d0
+		and.b	(Ctrl_2_pressed_logical).w,d0	; is A, B, or C pressed?
+		bra.s	AirRoll_Check
+; ---------------------------------------------------------------------------
+
+.return:
+		rts
+; End of function AirRoll_Tails
 
 ; ---------------------------------------------------------------------------
 ; Subroutine to make Sonic walk/run
@@ -27635,7 +27665,7 @@ locret_147B6:
 Tails_Stand_Freespace:
 		tst.b	double_jump_flag(a0)
 		bne.s	Tails_FlyingSwimming
-		bsr.w	AirRoll
+		bsr.w	AirRoll_Tails
 		bsr.w	Tails_JumpHeight
 		bsr.w	Tails_InputAcceleration_Freespace
 		bsr.w	Tails_Check_Screen_Boundaries
@@ -27846,7 +27876,7 @@ locret_149A0:
 ; ---------------------------------------------------------------------------
 
 Tails_Spin_Freespace:
-		bsr.w	AirRoll
+		bsr.w	AirRoll_Tails
 		tst.b	(Flying_carrying_Sonic_flag).w
 		beq.s	loc_149BA
 		lea	(Player_1).w,a1
@@ -28675,7 +28705,7 @@ Tails_JumpHeight:
 loc_150F0:
 		cmp.w	y_vel(a0),d1
 		ble.s	Tails_Test_For_Flight
-		move.b	(Ctrl_1_pressed_logical).w,d0
+		move.b	(Ctrl_2_pressed_logical).w,d0
 		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0
 		bne.w	Tails_Test_For_Flight	; freshly pressed: check ability without cutting height
 		move.b	(Ctrl_2_held_logical).w,d0
