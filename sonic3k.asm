@@ -23428,6 +23428,12 @@ loc_1182E:
 		clr.b	stick_to_convex(a0)
 		move.w	#sfx_Jump,d0
 		jsr	(Play_SFX).l
+	if FixBugs=0
+		; Bug: resetting the hitbox before checking for a roll gives a roll jump
+		; the standing height. https://info.sonicretro.org/SCHG_How-to:Use_correct_height_when_roll_jumping
+		move.b	default_y_radius(a0),y_radius(a0)
+		move.b	default_x_radius(a0),x_radius(a0)
+	endif
 		btst	#Status_Roll,status(a0)
 		bne.s	locret_118B2
 		move.b	#$E,y_radius(a0)
@@ -23826,7 +23832,11 @@ loc_11CDC:
 		move.b	#0,anim(a6)
 		moveq	#signextendB(sfx_Dash),d0
 		jsr	(Play_SFX).l
-		move.b	angle(a0),d0	; screen boundary spindash bug fix
+	if FixBugs
+		; Set the velocity now, so Player_LevelBound does not stop a Spin Dash
+		; released at the edge of the screen
+		; https://info.sonicretro.org/SCHG_How-to:Fix_screen_boundary_spindash_bug
+		move.b	angle(a0),d0
 		jsr	(GetSineCosine).l
 		muls.w	ground_vel(a0),d1
 		asr.l	#8,d1
@@ -23834,6 +23844,7 @@ loc_11CDC:
 		muls.w	ground_vel(a0),d0
 		asr.l	#8,d0
 		move.w	d0,y_vel(a0)
+	endif
 		bra.s	loc_11D5E
 ; ---------------------------------------------------------------------------
 word_11CF2:
@@ -26732,12 +26743,16 @@ loc_13CD2:
 		bne.s	loc_13D42
 		or.w	d0,d1
 		bne.s	loc_13D42
+	if FixBugs
+		; Tails could fly back in with the speed caps of a shoe or of water
+		; https://info.sonicretro.org/SCHG_How-to:Fix_Tails%27_respawn_speeds
 		btst	#Status_Underwater,status(a0)	; is Tails underwater?
 		bne.s	.underwater			; if so, branch
 		move.w	#$600,(Max_speed_P2).w		; set Tails' top speed
 		move.w	#$C,(Acceleration_P2).w		; set Tails' acceleration
 		move.w	#$80,(Deceleration_P2).w	; set Tails' deceleration
 .underwater:
+	endif
 		cmpi.b	#6,(Player_1+routine).w
 		bhs.s	loc_13D42
 		move.w	#6,(Tails_CPU_routine).w
@@ -28670,6 +28685,12 @@ loc_1504C:
 		clr.b	stick_to_convex(a0)
 		move.w	#sfx_Jump,d0
 		jsr	(Play_SFX).l
+	if FixBugs=0
+		; Bug: resetting the hitbox before checking for a roll gives a roll jump
+		; the standing height. https://info.sonicretro.org/SCHG_How-to:Use_correct_height_when_roll_jumping
+		move.b	default_y_radius(a0),y_radius(a0)
+		move.b	default_x_radius(a0),x_radius(a0)
+	endif
 		btst	#Status_Roll,status(a0)
 		bne.s	locret_150D0
 		move.b	#$E,y_radius(a0)
@@ -28891,7 +28912,11 @@ loc_152F8:
 		move.b	#0,anim(a6)
 		moveq	#signextendB(sfx_Dash),d0
 		jsr	(Play_SFX).l
-		move.b	angle(a0),d0	; screen boundary spindash bug fix
+	if FixBugs
+		; Set the velocity now, so Player_LevelBound does not stop a Spin Dash
+		; released at the edge of the screen
+		; https://info.sonicretro.org/SCHG_How-to:Fix_screen_boundary_spindash_bug
+		move.b	angle(a0),d0
 		jsr	(GetSineCosine).l
 		muls.w	ground_vel(a0),d1
 		asr.l	#8,d1
@@ -28899,6 +28924,7 @@ loc_152F8:
 		muls.w	ground_vel(a0),d0
 		asr.l	#8,d0
 		move.w	d0,y_vel(a0)
+	endif
 		bra.s	loc_1537A
 ; ---------------------------------------------------------------------------
 word_1530E:
@@ -32591,6 +32617,12 @@ loc_1775C:
 		clr.b	stick_to_convex(a0)
 		move.w	#sfx_Jump,d0
 		jsr	(Play_SFX).l
+	if FixBugs=0
+		; Bug: resetting the hitbox before checking for a roll gives a roll jump
+		; the standing height. https://info.sonicretro.org/SCHG_How-to:Use_correct_height_when_roll_jumping
+		move.b	default_y_radius(a0),y_radius(a0)
+		move.b	default_x_radius(a0),x_radius(a0)
+	endif
 		btst	#Status_Roll,status(a0)
 		bne.s	locret_177E0
 		move.b	#$E,y_radius(a0)
@@ -35700,12 +35732,18 @@ loc_1A6B6:
 		move.w	#$180,priority(a1)
 		move.b	#$47,collision_flags(a1)
 		move.b	#8,width_pixels(a1)
+	if FixBugs=0
+		move.b	#-1,(Ring_spill_anim_counter).w
+	endif
 		tst.w	d4
 		bmi.s	loc_1A728
 		move.w	d4,d0
 		jsr	(GetSineCosine).l
 		move.w	d4,d2
 		lsr.w	#8,d2
+	if FixBugs
+		; Scatter rings at half speed underwater
+		; https://info.sonicretro.org/SCHG_How-to:Fix_Scattered_Rings_Underwater_Physics
 		tst.b	(Water_flag).w		; Does the level have water?
 		beq.s	.skiphalvingvel		; If not, branch and skip underwater checks
 		move.w	(Water_level).w,d6	; Move water level to d6
@@ -35714,6 +35752,7 @@ loc_1A6B6:
 		asr.w	d0			; Half d0. Makes the ring's x_vel bounce to the left/right slower
 		asr.w	d1			; Half d1. Makes the ring's y_vel bounce up/down slower
 .skiphalvingvel:
+	endif
 		asl.w	d2,d0
 		asl.w	d2,d1
 		move.w	d0,d2
@@ -35732,9 +35771,14 @@ loc_1A728:
 		dbf	d5,loc_1A6AE
 
 loc_1A738:
-		moveq   #-1,d0							; Move #-1 to d0
-		move.b  d0,height_pixels(a0)			; Move d0 to new timer
-		move.b  d0,(Ring_spill_anim_counter).w	; Move d0 to old timer (for animated purposes)
+	if FixBugs
+		; Give every ring its own lifetime in height_pixels, so rings scattered
+		; later do not reset the ones already falling
+		; https://info.sonicretro.org/SCHG_How-to:Fix_Ring_Timers
+		moveq	#-1,d0
+		move.b	d0,height_pixels(a0)		; this ring's own timer
+		move.b	d0,(Ring_spill_anim_counter).w	; the global one still drives the spin animation
+	endif
 		move.w	#signextendB(sfx_RingLoss),d0
 		jsr	(Play_SFX).l
 		move.w	#0,(Ring_count).w
@@ -35746,14 +35790,11 @@ loc_1A738:
 loc_1A75C:
 		move.b	(Ring_spill_anim_frame).w,mapping_frame(a0)
 		bsr.w	MoveSprite2
+	if FixBugs
+		bsr.w	Bouncing_Ring_Gravity
+	else
 		addi.w	#$18,y_vel(a0)
-		tst.b	(Water_flag).w		; Does the level have water?
-		beq.s	.skiphalvinggrav	; If not, branch and skip underwater checks
-		move.w	(Water_level).w,d6	; Move water level to d6
-		cmp.w	y_pos(a0),d6		; Is the ring object underneath the water level?
-		bgt.s	.skiphalvinggrav	; If not, branch and skip underwater commands
-		subi.w	#$E,$1A(a0)		; Reduce gravity by $E ($18-$E=$A), giving the underwater effect
-.skiphalvinggrav:
+	endif
 		bmi.s	loc_1A7B0
 		move.b	(V_int_run_count+3).w,d0
 		add.b	d7,d0
@@ -35771,24 +35812,30 @@ loc_1A75C:
 		neg.w	y_vel(a0)
 
 loc_1A79C:
-		cmpi.w	#$FF00,($FFFFEE18).w		; is vertical wrapping enabled?
-		beq.w	loc_1A7B0			; if so, branch
+	if FixBugs
+		; In acts that wrap vertically the bottom of the level is not the bottom
+		; of the map, so rings must not be deleted below it
+		; https://info.sonicretro.org/SCHG_How-to:Fix_Accidental_Deletion_of_Scattered_Rings
+		cmpi.w	#-$100,(Camera_min_Y_pos).w	; does the act wrap vertically?
+		beq.s	loc_1A7B0			; if so, branch
+	else
+		tst.b	(Ring_spill_anim_counter).w
+		beq.s	loc_1A7E4
+	endif
 		move.w	(Camera_max_Y_pos).w,d0
 		addi.w	#$E0,d0
 		cmp.w	y_pos(a0),d0
 		blo.s	loc_1A7E4
 
 loc_1A7B0:
-		subq.b  #1,height_pixels(a0)		; Subtract 1
-		beq.w   Delete_Current_Sprite		; If 0, delete
+	if FixBugs
+		bra.w	Bouncing_Ring_TimerAndDraw
+	else
 		jsr	(Add_SpriteToCollisionResponseList).l
 		move.w	(Level_repeat_offset).w,d0
 		sub.w	d0,x_pos(a0)
-		btst	#0,height_pixels(a0)		; test first bit for flash effect
-		beq.w	Draw_Sprite					; if bit is 0, display ring
-		cmpi.b	#80,height_pixels(a0)		; rings flash during last 80 frames
-		bhi.w	Draw_Sprite					; if timer > 80, stay visible
-		rts
+		bra.w	Draw_Sprite
+	endif
 ; ---------------------------------------------------------------------------
 
 loc_1A7C2:
@@ -35810,14 +35857,11 @@ loc_1A7E4:
 loc_1A7E8:
 		move.b	(Ring_spill_anim_frame).w,mapping_frame(a0)
 		bsr.w	MoveSprite_TestGravity2
+	if FixBugs
+		bsr.w	Bouncing_Ring_Gravity
+	else
 		addi.w	#$18,y_vel(a0)
-		tst.b	(Water_flag).w		; Does the level have water?
-		beq.s	.skiphalvingrevgrav	; If not, branch and skip underwater checks
-		move.w	(Water_level).w,d6	; Move water level to d6
-		cmp.w	y_pos(a0),d6		; Is the ring object underneath the water level?
-		bgt.s	.skiphalvingrevgrav	; If not, branch and skip underwater commands
-		subi.w	#$E,$1A(a0)		; Reduce gravity by $E ($18-$E=$A), giving the underwater effect
-.skiphalvingrevgrav:
+	endif
 		bmi.s	loc_1A83C
 		move.b	(V_int_run_count+3).w,d0
 		add.b	d7,d0
@@ -35835,18 +35879,66 @@ loc_1A7E8:
 		neg.w	y_vel(a0)
 
 loc_1A828:
+	if FixBugs
+		cmpi.w	#-$100,(Camera_min_Y_pos).w	; does the act wrap vertically?
+		beq.s	loc_1A83C			; if so, branch
+	else
 		tst.b	(Ring_spill_anim_counter).w
 		beq.s	loc_1A7E4
+	endif
 		move.w	(Camera_max_Y_pos).w,d0
 		addi.w	#$E0,d0
 		cmp.w	y_pos(a0),d0
 		blo.s	loc_1A7E4
 
 loc_1A83C:
+	if FixBugs
+		bra.w	Bouncing_Ring_TimerAndDraw
+	else
 		jsr	(Add_SpriteToCollisionResponseList).l
 		move.w	(Level_repeat_offset).w,d0
 		sub.w	d0,x_pos(a0)
 		bra.w	Draw_Sprite
+	endif
+; ---------------------------------------------------------------------------
+
+	if FixBugs
+; ---------------------------------------------------------------------------
+; Adds gravity to a scattered ring: $18 in air, $A under water, as for the player
+; https://info.sonicretro.org/SCHG_How-to:Fix_Scattered_Rings_Underwater_Physics
+; Output: flags of the new y_vel
+; ---------------------------------------------------------------------------
+
+Bouncing_Ring_Gravity:
+		moveq	#$18,d0
+		tst.b	(Water_flag).w			; does the level have water?
+		beq.s	.apply				; if not, branch
+		move.w	(Water_level).w,d1
+		cmp.w	y_pos(a0),d1			; is the ring above the water?
+		bgt.s	.apply				; if so, branch
+		moveq	#$A,d0				; underwater gravity
+
+.apply:
+		add.w	d0,y_vel(a0)
+		rts
+; ---------------------------------------------------------------------------
+; Counts down a scattered ring's own timer, deletes it when it runs out and
+; makes it flash during its last 80 frames
+; https://info.sonicretro.org/SCHG_How-to:Fix_Ring_Timers
+; ---------------------------------------------------------------------------
+
+Bouncing_Ring_TimerAndDraw:
+		subq.b	#1,height_pixels(a0)
+		beq.w	Delete_Current_Sprite		; if the timer ran out, delete the ring
+		jsr	(Add_SpriteToCollisionResponseList).l
+		move.w	(Level_repeat_offset).w,d0
+		sub.w	d0,x_pos(a0)
+		btst	#0,height_pixels(a0)		; flash every other frame...
+		beq.w	Draw_Sprite
+		cmpi.b	#80,height_pixels(a0)		; ...during the last 80 frames
+		bhi.w	Draw_Sprite
+		rts
+	endif
 ; ---------------------------------------------------------------------------
 
 Obj_Attracted_Ring:
@@ -35871,7 +35963,9 @@ loc_1A88C:
 		move.l	#Obj_Bouncing_Ring,(a0)		; If not, change object
 		move.b	#2,routine(a0)
 		move.b	#-1,(Ring_spill_anim_counter).w
-		move.b	#-1,height_pixels(a0)		; Move #$FF to new timer
+	if FixBugs
+		move.b	#-1,height_pixels(a0)		; this ring's own timer (Fix Ring Timers)
+	endif
 
 Obj_Attracted_RingAnimate:
 		subq.b	#1,anim_frame_timer(a0)
@@ -187391,7 +187485,9 @@ loc_89D44:
 		jsr	SetUp_ObjAttributes(pc)
 		move.l	#Obj_Bouncing_Ring,(a0)
 		move.b	#-1,(Ring_spill_anim_counter).w
-		move.b  #-1,height_pixels(a0)		; Move #$FF to new timer
+	if FixBugs
+		move.b	#-1,height_pixels(a0)		; this ring's own timer (Fix Ring Timers)
+	endif
 		move.b	#8,y_radius(a0)
 		move.b	#8,x_radius(a0)
 		move.b	#$84,render_flags(a0)
