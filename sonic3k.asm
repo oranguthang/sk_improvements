@@ -2343,259 +2343,8 @@ Load_PLC_Immediate:
 
 
 Eni_Decomp:
-		movem.l	d0-d7/a1-a5,-(sp)
-		movea.w	d0,a3	; store starting art tile
-		move.b	(a0)+,d0
-		ext.w	d0
-		movea.w	d0,a5	; store number of bits in inline copy value
-		move.b	(a0)+,d4
-		lsl.b	#3,d4	; store PCCVH flags bitfield
-		movea.w	(a0)+,a2
-		adda.w	a3,a2	; store incremental copy word
-		movea.w	(a0)+,a4
-		adda.w	a3,a4	; store literal copy word
-		move.b	(a0)+,d5
-		asl.w	#8,d5
-		move.b	(a0)+,d5	; get first word in format list
-		moveq	#$10,d6		; initial shift value
-
-Eni_Decomp_Loop:
-		moveq	#7,d0	; assume a format list entry is 7 bits
-		move.w	d6,d7
-		sub.w	d0,d7
-		move.w	d5,d1
-		lsr.w	d7,d1
-		andi.w	#$7F,d1	; get format list entry
-		move.w	d1,d2	; and copy it
-		cmpi.w	#$40,d1	; is the high bit of the entry set?
-		bhs.s	+
-		moveq	#6,d0	; if it isn't, the entry is actually 6 bits
-		lsr.w	#1,d2
-
-+
-		bsr.w	Eni_Decomp_FetchByte
-		andi.w	#$F,d2	; get repeat count
-		lsr.w	#4,d1
-		add.w	d1,d1
-		jmp	Eni_Decomp_Index(pc,d1.w)
-; ---------------------------------------------------------------------------
-
-Eni_Decomp_00:
-		move.w	a2,(a1)+	; copy incremental copy word
-		addq.w	#1,a2	; increment it
-		dbf	d2,Eni_Decomp_00	; repeat
-		bra.s	Eni_Decomp_Loop
-; ---------------------------------------------------------------------------
-
-Eni_Decomp_01:
-		move.w	a4,(a1)+	; copy literal copy word
-		dbf	d2,Eni_Decomp_01	; repeat
-		bra.s	Eni_Decomp_Loop
-; ---------------------------------------------------------------------------
-
-Eni_Decomp_100:
-		bsr.w	Eni_Decomp_FetchInlineValue
-
-.loop:
-		move.w	d1,(a1)+	; copy inline value
-		dbf	d2,.loop	; repeat
-		bra.s	Eni_Decomp_Loop
-; ---------------------------------------------------------------------------
-
-Eni_Decomp_101:
-		bsr.w	Eni_Decomp_FetchInlineValue
-
-.loop:
-		move.w	d1,(a1)+	; copy inline value
-		addq.w	#1,d1	; increment
-		dbf	d2,.loop	; repeat
-		bra.s	Eni_Decomp_Loop
-; ---------------------------------------------------------------------------
-
-Eni_Decomp_110:
-		bsr.w	Eni_Decomp_FetchInlineValue
-
-.loop:
-		move.w	d1,(a1)+	; copy inline value
-		subq.w	#1,d1	; decrement
-		dbf	d2,.loop	; repeat
-		bra.s	Eni_Decomp_Loop
-; ---------------------------------------------------------------------------
-
-Eni_Decomp_111:
-		cmpi.w	#$F,d2
-		beq.s	Eni_Decomp_Done
-
-.loop:
-		bsr.w	Eni_Decomp_FetchInlineValue	; fetch new inline value
-		move.w	d1,(a1)+	; copy it
-		dbf	d2,.loop	; and repeat
-		bra.s	Eni_Decomp_Loop
-; ---------------------------------------------------------------------------
-
-Eni_Decomp_Index:
-		bra.s	Eni_Decomp_00
-; ---------------------------------------------------------------------------
-		bra.s	Eni_Decomp_00
-; ---------------------------------------------------------------------------
-		bra.s	Eni_Decomp_01
-; ---------------------------------------------------------------------------
-		bra.s	Eni_Decomp_01
-; ---------------------------------------------------------------------------
-		bra.s	Eni_Decomp_100
-; ---------------------------------------------------------------------------
-		bra.s	Eni_Decomp_101
-; ---------------------------------------------------------------------------
-		bra.s	Eni_Decomp_110
-; ---------------------------------------------------------------------------
-		bra.s	Eni_Decomp_111
-; ---------------------------------------------------------------------------
-
-Eni_Decomp_Done:
-		subq.w	#1,a0	; go back by one byte
-		cmpi.w	#$10,d6
-		bne.s	+
-		subq.w	#1,a0	; and another one if needed
-
-+
-		move.w	a0,d0
-		lsr.w	#1,d0
-		bcc.s	+
-		addq.w	#1,a0	; make sure it's an even address
-
-+
-		movem.l	(sp)+,d0-d7/a1-a5
-		rts
+		jmp	(Eni_Decomp_Fast).l	; the faster decoder in Improvements/Decompression.asm
 ; End of function Eni_Decomp
-
-; ---------------------------------------------------------------------------
-; Part of the Enigma decompressor
-; Fetches an inline copy value and stores it in d1
-; ---------------------------------------------------------------------------
-
-; =============== S U B R O U T I N E =======================================
-
-
-Eni_Decomp_FetchInlineValue:
-		move.w	a3,d3	; copy starting art tile
-		move.b	d4,d1	; copy PCCVH bitfield
-		add.b	d1,d1	; is the priority bit set?
-		bcc.s	+	; if not, branch
-		subq.w	#1,d6
-		btst	d6,d5	; is the priority bit set in the inline render flags?
-		beq.s	+	; if not, branch
-		ori.w	#high_priority,d3	; otherwise set priority bit in art tile
-
-+
-		add.b	d1,d1	; is the high palette line bit set?
-		bcc.s	+	; if not, branch
-		subq.w	#1,d6
-		btst	d6,d5
-		beq.s	+
-		addi.w	#palette_line_2,d3
-
-+
-		add.b	d1,d1	; is the low palette line bit set?
-		bcc.s	+	; if not, branch
-		subq.w	#1,d6
-		btst	d6,d5
-		beq.s	+
-		addi.w	#palette_line_1,d3
-
-+
-		add.b	d1,d1	; is the vertical flip flag set?
-		bcc.s	+	; if not, branch
-		subq.w	#1,d6
-		btst	d6,d5
-		beq.s	+
-		ori.w	#$1000,d3
-
-+
-		add.b	d1,d1	; is the horizontal flip flag set?
-		bcc.s	+	; if not, branch
-		subq.w	#1,d6
-		btst	d6,d5
-		beq.s	+
-		ori.w	#$800,d3
-
-+
-		move.w	d5,d1
-		move.w	d6,d7
-		sub.w	a5,d7	; subtract length in bits of inline copy value
-		bcc.s	.enoughBits	; branch if a new word doesn't need to be read
-		move.w	d7,d6
-		addi.w	#$10,d6
-		neg.w	d7	; calculate bit deficit
-		lsl.w	d7,d1	; and make space for that many bits
-		move.b	(a0),d5	; get next byte
-		rol.b	d7,d5	; and rotate the required bits into the lowest positions
-		add.w	d7,d7
-		and.w	Eni_Decomp_Masks-2(pc,d7.w),d5
-		add.w	d5,d1	; combine upper bits with lower bits
-
-.maskValue:
-		move.w	a5,d0	; get length in bits of inline copy value
-		add.w	d0,d0
-		and.w	Eni_Decomp_Masks-2(pc,d0.w),d1	; mask value appropriately
-		add.w	d3,d1	; add starting art tile
-		move.b	(a0)+,d5
-		lsl.w	#8,d5
-		move.b	(a0)+,d5	; get next word
-		rts
-; ---------------------------------------------------------------------------
-
-.enoughBits:
-		beq.s	.justEnough	; if the word has been exactly exhausted, branch
-		lsr.w	d7,d1	; get inline copy value
-		move.w	a5,d0
-		add.w	d0,d0
-		and.w	Eni_Decomp_Masks-2(pc,d0.w),d1	; and mask it appropriately
-		add.w	d3,d1	; add starting art tile
-		move.w	a5,d0
-		bra.s	Eni_Decomp_FetchByte
-; ---------------------------------------------------------------------------
-
-.justEnough:
-		moveq	#$10,d6	; reset shift value
-		bra.s	.maskValue
-; End of function Eni_Decomp_FetchInlineValue
-
-; ---------------------------------------------------------------------------
-Eni_Decomp_Masks:
-		dc.w     1
-		dc.w     3
-		dc.w     7
-		dc.w    $F
-		dc.w   $1F
-		dc.w   $3F
-		dc.w   $7F
-		dc.w   $FF
-		dc.w  $1FF
-		dc.w  $3FF
-		dc.w  $7FF
-		dc.w  $FFF
-		dc.w $1FFF
-		dc.w $3FFF
-		dc.w $7FFF
-		dc.w $FFFF
-; ---------------------------------------------------------------------------
-; Part of the Enigma decompressor, fetches the next byte if needed
-; ---------------------------------------------------------------------------
-
-; =============== S U B R O U T I N E =======================================
-
-
-Eni_Decomp_FetchByte:
-		sub.w	d0,d6	; subtract length of current entry from shift value so that next entry is read next time around
-		cmpi.w	#9,d6	; does a new byte need to be read?
-		bhs.s	+	; if not, branch
-		addq.w	#8,d6
-		asl.w	#8,d5
-		move.b	(a0)+,d5
-
-+
-		rts
-; End of function Eni_Decomp_FetchByte
 
 ; ---------------------------------------------------------------------------
 ; Kosinski decompression subroutine
@@ -2609,96 +2358,7 @@ Eni_Decomp_FetchByte:
 
 
 Kos_Decomp:
-		subq.l	#2,sp	; make space for two bytes on the stack
-		move.b	(a0)+,1(sp)
-		move.b	(a0)+,(sp)
-		move.w	(sp),d5	; copy first description field
-		moveq	#$F,d4	; 16 bits in a byte
-
-Kos_Decomp_Loop:
-		lsr.w	#1,d5	; bit which is shifted out goes into C flag
-		move	sr,d6
-		dbf	d4,Kos_Decomp_ChkBit
-		move.b	(a0)+,1(sp)
-		move.b	(a0)+,(sp)
-		move.w	(sp),d5	; get next description field if needed
-		moveq	#$F,d4	; reset bit counter
-
-Kos_Decomp_ChkBit:
-		move	d6,ccr	; was the bit set?
-		bcc.s	Kos_Decomp_Match	; if not, branch (C flag clear means bit was clear)
-		move.b	(a0)+,(a1)+	; otherwise, copy byte as-is
-		bra.s	Kos_Decomp_Loop
-; ---------------------------------------------------------------------------
-
-Kos_Decomp_Match:
-		moveq	#0,d3
-		lsr.w	#1,d5	; get next bit
-		move	sr,d6
-		dbf	d4,Kos_Decomp_ChkBit2
-		move.b	(a0)+,1(sp)
-		move.b	(a0)+,(sp)
-		move.w	(sp),d5
-		moveq	#$F,d4
-
-Kos_Decomp_ChkBit2:
-		move	d6,ccr	; was the bit set?
-		bcs.s	Kos_Decomp_FullMatch	; if it was, branch
-		lsr.w	#1,d5	; bit which is shifted out goes into X flag
-		dbf	d4,+
-		move.b	(a0)+,1(sp)
-		move.b	(a0)+,(sp)
-		move.w	(sp),d5
-		moveq	#$F,d4
-
-+
-		roxl.w	#1,d3	; get high repeat count bit (shift X flag in)
-		lsr.w	#1,d5
-		dbf	d4,+
-		move.b	(a0)+,1(sp)
-		move.b	(a0)+,(sp)
-		move.w	(sp),d5
-		moveq	#$F,d4
-
-+
-		roxl.w	#1,d3	; get low repeat count bit
-		addq.w	#1,d3	; increment repeat count
-		moveq	#-1,d2
-		move.b	(a0)+,d2	; calculate offset
-		bra.s	Kos_Decomp_MatchLoop
-; ---------------------------------------------------------------------------
-
-Kos_Decomp_FullMatch:
-		move.b	(a0)+,d0	; get first byte
-		move.b	(a0)+,d1	; get second byte
-		moveq	#-1,d2
-		move.b	d1,d2
-		lsl.w	#5,d2
-		move.b	d0,d2	; calculate offset
-		andi.w	#7,d1	; does a third byte need to be read?
-		beq.s	Kos_Decomp_FullMatch2	; if it does, branch
-		move.b	d1,d3	; copy repeat count
-		addq.w	#1,d3	; and increment it
-
-Kos_Decomp_MatchLoop:
-		move.b	(a1,d2.w),d0
-		move.b	d0,(a1)+	; copy appropriate byte
-		dbf	d3,Kos_Decomp_MatchLoop	; and repeat the copying
-		bra.s	Kos_Decomp_Loop
-; ---------------------------------------------------------------------------
-
-Kos_Decomp_FullMatch2:
-		move.b	(a0)+,d1
-		beq.s	Kos_Decomp_Done	; 0 indicates end of compressed data
-		cmpi.b	#1,d1
-		beq.w	Kos_Decomp_Loop	; 1 indicates a new description needs to be read
-		move.b	d1,d3	; otherwise, copy repeat count
-		bra.s	Kos_Decomp_MatchLoop
-; ---------------------------------------------------------------------------
-
-Kos_Decomp_Done:
-		addq.l	#2,sp	; restore stack pointer to original state
-		rts
+		jmp	(Kos_Decomp_Fast).l	; the faster decoder in Improvements/Decompression.asm
 ; End of function Kos_Decomp
 
 ; ---------------------------------------------------------------------------
@@ -2903,92 +2563,242 @@ Process_Kos_Queue_Main:
 		movea.l	(Kos_decomp_queue).w,a0
 		movea.l	(Kos_decomp_destination).w,a1
 
-		; what follows is identical to the normal Kosinski decompressor except for using Kos_description_field instead of the stack
-		lea	(Kos_description_field).w,a2
-		move.b	(a0)+,1(a2)
-		move.b	(a0)+,(a2)
-		move.w	(a2),d5
-		moveq	#$F,d4
-
-Process_Kos_Queue_Loop:
-		lsr.w	#1,d5
-		move	sr,d6
-		dbf	d4,Process_Kos_Queue_ChkBit
-		move.b	(a0)+,1(a2)
-		move.b	(a0)+,(a2)
-		move.w	(a2),d5
-		moveq	#$F,d4
-
-Process_Kos_Queue_ChkBit:
-		move	d6,ccr
-		bcc.s	Process_Kos_Queue_RLE
-		move.b	(a0)+,(a1)+
-		bra.s	Process_Kos_Queue_Loop
-; ---------------------------------------------------------------------------
-
-Process_Kos_Queue_RLE:
+		; What follows is Kos_Decomp_Fast, rewritten for Set_Kos_Bookmark: V-int
+		; may stop it anywhere and saves only d0-d6/a0-a2 and the PC, so it keeps
+		; nothing on the stack and uses no other register. a2 holds the bit
+		; reversal table, and dictionary copies read (a1,d5.w) instead of a5.
+		lea	(Kos_Decomp_ByteMap).l,a2
+		moveq	#0,d0
+		moveq	#0,d1
+		move.b	(a0)+,d0				; get description field low byte
+		move.b	(a0)+,d1				; get description field high byte
+		move.b	(a2,d0.w),d0				; reverse bit order...
+		move.b	(a2,d1.w),d1				; ...for both bytes
+		moveq	#7,d2					; 8 bits in the first byte
 		moveq	#0,d3
-		lsr.w	#1,d5
-		move	sr,d6
-		dbf	d4,Process_Kos_Queue_ChkBit2
-		move.b	(a0)+,1(a2)
-		move.b	(a0)+,(a2)
-		move.w	(a2),d5
-		moveq	#$F,d4
-
-Process_Kos_Queue_ChkBit2:
-		move	d6,ccr
-		bcs.s	Process_Kos_Queue_SeparateRLE
-		lsr.w	#1,d5
-		dbf	d4,+
-		move.b	(a0)+,1(a2)
-		move.b	(a0)+,(a2)
-		move.w	(a2),d5
-		moveq	#$F,d4
-
-+
-		roxl.w	#1,d3
-		lsr.w	#1,d5
-		dbf	d4,+
-		move.b	(a0)+,1(a2)
-		move.b	(a0)+,(a2)
-		move.w	(a2),d5
-		moveq	#$F,d4
-
-+
-		roxl.w	#1,d3
-		addq.w	#1,d3
-		moveq	#-1,d2
-		move.b	(a0)+,d2
-		bra.s	Process_Kos_Queue_RLELoop
+		bra.s	.fetchNewCode
 ; ---------------------------------------------------------------------------
 
-Process_Kos_Queue_SeparateRLE:
+.fetchCodeLoop:
+		; code 1 (uncompressed byte)
+		dbf	d2,.bits0
+		moveq	#7,d2
+		move.b	d1,d0
+		not.w	d3
+		bne.s	.bits0
 		move.b	(a0)+,d0
 		move.b	(a0)+,d1
-		moveq	#-1,d2
-		move.b	d1,d2
-		lsl.w	#5,d2
-		move.b	d0,d2
-		andi.w	#7,d1
-		beq.s	Process_Kos_Queue_SeparateRLE2
-		move.b	d1,d3
-		addq.w	#1,d3
+		move.b	(a2,d0.w),d0
+		move.b	(a2,d1.w),d1
 
-Process_Kos_Queue_RLELoop:
-		move.b	(a1,d2.w),d0
-		move.b	d0,(a1)+
-		dbf	d3,Process_Kos_Queue_RLELoop
-		bra.s	Process_Kos_Queue_Loop
+.bits0:
+		move.b	(a0)+,(a1)+				; copy byte as-is
+
+.fetchNewCode:
+		add.b	d0,d0					; get next bit
+		bcs.s	.fetchCodeLoop				; if code = 1, branch
+
+		; codes 00 and 01
+		moveq	#-1,d5
+		dbf	d2,.bits1
+		moveq	#7,d2
+		move.b	d1,d0
+		not.w	d3
+		bne.s	.bits1
+		move.b	(a0)+,d0
+		move.b	(a0)+,d1
+		move.b	(a2,d0.w),d0
+		move.b	(a2,d1.w),d1
+
+.bits1:
+		add.b	d0,d0
+		bcs.w	.code01					; if code = 01, branch
+
+		; code 00 (dictionary reference, 2-5 bytes, 8-bit displacement)
+		dbf	d2,.bits2
+		moveq	#7,d2
+		move.b	d1,d0
+		not.w	d3
+		bne.s	.bits2
+		move.b	(a0)+,d0
+		move.b	(a0)+,d1
+		move.b	(a2,d0.w),d0
+		move.b	(a2,d1.w),d1
+
+.bits2:
+		add.b	d0,d0					; get high count bit
+		bcs.s	.copy45
+		dbf	d2,.bits3
+		moveq	#7,d2
+		move.b	d1,d0
+		not.w	d3
+		bne.s	.bits3
+		move.b	(a0)+,d0
+		move.b	(a0)+,d1
+		move.b	(a2,d0.w),d0
+		move.b	(a2,d1.w),d1
+
+.bits3:
+		add.b	d0,d0					; get low count bit
+		bcs.s	.copy3
+		dbf	d2,.bits4
+		moveq	#7,d2
+		move.b	d1,d0
+		not.w	d3
+		bne.s	.bits4
+		move.b	(a0)+,d0
+		move.b	(a0)+,d1
+		move.b	(a2,d0.w),d0
+		move.b	(a2,d1.w),d1
+
+.bits4:
+		move.b	(a0)+,d5				; d5 = displacement
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		bra.w	.fetchNewCode
 ; ---------------------------------------------------------------------------
 
-Process_Kos_Queue_SeparateRLE2:
+.copy3:
+		dbf	d2,.bits5
+		moveq	#7,d2
+		move.b	d1,d0
+		not.w	d3
+		bne.s	.bits5
+		move.b	(a0)+,d0
 		move.b	(a0)+,d1
-		beq.s	Process_Kos_Queue_EndReached
-		cmpi.b	#1,d1
-		beq.w	Process_Kos_Queue_Loop
-		move.b	d1,d3
-		bra.s	Process_Kos_Queue_RLELoop
+		move.b	(a2,d0.w),d0
+		move.b	(a2,d1.w),d1
+
+.bits5:
+		move.b	(a0)+,d5				; d5 = displacement
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		bra.w	.fetchNewCode
+; ---------------------------------------------------------------------------
+
+.copy45:
+		dbf	d2,.bits6
+		moveq	#7,d2
+		move.b	d1,d0
+		not.w	d3
+		bne.s	.bits6
+		move.b	(a0)+,d0
+		move.b	(a0)+,d1
+		move.b	(a2,d0.w),d0
+		move.b	(a2,d1.w),d1
+
+.bits6:
+		add.b	d0,d0					; get low count bit
+		bcs.s	.copy5
+		dbf	d2,.bits7
+		moveq	#7,d2
+		move.b	d1,d0
+		not.w	d3
+		bne.s	.bits7
+		move.b	(a0)+,d0
+		move.b	(a0)+,d1
+		move.b	(a2,d0.w),d0
+		move.b	(a2,d1.w),d1
+
+.bits7:
+		move.b	(a0)+,d5				; d5 = displacement
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		bra.w	.fetchNewCode
+; ---------------------------------------------------------------------------
+
+.copy5:
+		dbf	d2,.bits8
+		moveq	#7,d2
+		move.b	d1,d0
+		not.w	d3
+		bne.s	.bits8
+		move.b	(a0)+,d0
+		move.b	(a0)+,d1
+		move.b	(a2,d0.w),d0
+		move.b	(a2,d1.w),d1
+
+.bits8:
+		move.b	(a0)+,d5				; d5 = displacement
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		bra.w	.fetchNewCode
+; ---------------------------------------------------------------------------
+
+.code01:
+		; code 01 (dictionary reference, 13-bit displacement, or special)
+		moveq	#0,d4
+		dbf	d2,.bits9
+		moveq	#7,d2
+		move.b	d1,d0
+		not.w	d3
+		bne.s	.bits9
+		move.b	(a0)+,d0
+		move.b	(a0)+,d1
+		move.b	(a2,d0.w),d0
+		move.b	(a2,d1.w),d1
+
+.bits9:
+		move.b	(a0)+,d6				; d6 = %LLLLLLLL
+		move.b	(a0)+,d4				; d4 = %HHHHHCCC
+		move.b	d4,d5					; d5 = %11111111 HHHHHCCC
+		lsl.w	#5,d5					; d5 = %111HHHHH CCC00000
+		move.b	d6,d5					; d5 = %111HHHHH LLLLLLLL
+		andi.w	#7,d4					; d4 = %00000CCC
+		bne.s	.streamCopy				; if CCC <> 0, branch
+
+		; extended count
+		move.b	(a0)+,d4				; read count
+		beq.s	Process_Kos_Queue_EndReached		; 0 indicates end of compressed data
+		subq.b	#1,d4
+		beq.w	.fetchNewCode				; 1 indicates no copy (padding)
+		move.b	(a1,d5.w),(a1)+			; copy 1 extra byte to compensate for the +1 in the count
+		move.w	d4,d6
+		not.w	d6
+		andi.w	#7,d6
+		add.w	d6,d6
+		add.w	d6,d6					; 4 bytes a copy
+		lsr.w	#3,d4
+		jmp	.largeCopy(pc,d6.w)			; copy (count mod 8) bytes first
+; ---------------------------------------------------------------------------
+
+.largeCopy:
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		dbf	d4,.largeCopy
+		bra.w	.fetchNewCode
+; ---------------------------------------------------------------------------
+
+.streamCopy:
+		move.b	(a1,d5.w),(a1)+			; copy 1 extra byte to compensate for the +1 in the count
+		eori.w	#7,d4
+		add.w	d4,d4
+		add.w	d4,d4					; 4 bytes a copy
+		jmp	.mediumCopy(pc,d4.w)			; copy CCC+1 bytes
+; ---------------------------------------------------------------------------
+
+.mediumCopy:
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		move.b	(a1,d5.w),(a1)+
+		bra.w	.fetchNewCode
 ; ---------------------------------------------------------------------------
 
 Process_Kos_Queue_EndReached:
@@ -16018,6 +15828,7 @@ Write_SaveGame:
 		include "Improvements/Cheats.asm"
 		include "Improvements/DebugHud.asm"
 		include "Improvements/QoL.asm"
+		include "Improvements/Decompression.asm"
 		include "Improvements/LightDash.asm"
 		include "Improvements/PeelOut.asm"
 

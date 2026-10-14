@@ -42,6 +42,7 @@ The disassembly's built-in `FixBugs` flag is enabled, applying approximately 59 
 - [Fix Blue Knuckles](https://info.sonicretro.org/SCHG_How-to:Fix_Blue_Knuckles)
 - [Create a Homing Attack from scratch](https://info.sonicretro.org/SCHG_How-to:Create_a_Homing_Attack_from_scratch): Sonic's Homing Attack and Jump Dash replace the Insta-Shield (see [air moves](docs/modding.md#air-moves))
 - [Add Extended Camera to Sonic 1](https://info.sonicretro.org/SCHG_How-to:Add_Extended_Camera_to_Sonic_1), ported to S3K for every character with the Spin Dash pan from Sonic 2 Improvements (see [extended camera](docs/modding.md#extended-camera))
+- [Improving compression formats](https://info.sonicretro.org/SCHG_How-to:Improving_compression_formats): faster Kosinski (including the decompression queue) and Enigma decoders (see [optimisations](docs/modding.md#optimisations))
 
 Six-button controllers are detected on both ports. X, Y, Z, and Mode have separate held/pressed input states in `Ctrl_1_held_6B` / `Ctrl_1_pressed_6B` and their player-two equivalents; bit 7 of the held state indicates a detected six-button controller. The extra buttons currently have no gameplay bindings. Enable six-button controllers in your emulator to use these inputs.
 
