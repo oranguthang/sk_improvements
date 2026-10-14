@@ -57,8 +57,11 @@ FeatureSmoothSlots = 1
 ;	| The Slots bonus stage rotates in 256 steps instead of 64
 FeatureBlueKnuckles = 1
 ;	| Player mode 4, Blue Knuckles, can be picked in the Level Select
+FeatureHomingAttack = 1
+;	| A/B/C in the air: Sonic's Homing Attack, or Jump Dash without a target,
+;	| instead of the Insta-Shield; elemental shields keep their own moves
 
-	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles)&~1
+	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack)&~1
 		error "Feature options must be 0 or 1"
 	endif
 
@@ -20959,9 +20962,38 @@ Touch_Monitor:
 		neg.w	y_vel(a0)
 		move.b	#4,routine(a1)
 		move.w	a0,parent(a1)
+	if FeatureHomingAttack
+		bsr.w	Touch_ResetAirDash		; after an air dash, bounce straight up instead
+	endif
 
 	.return:
 		rts
+
+	if FeatureHomingAttack
+; ---------------------------------------------------------------------------
+; After Sonic's air dash breaks a badnik or monitor, he bounces straight up
+; and may dash again, as in Sonic 1 Improvements.
+; Output: Z clear if the bounce was applied
+; ---------------------------------------------------------------------------
+
+Touch_ResetAirDash:
+		tst.b	character_id(a0)		; Sonic?
+		bne.s	.none
+		cmpi.b	#2,double_jump_flag(a0)		; did he air dash in this jump?
+		bne.s	.none
+		clr.w	x_vel(a0)
+		move.w	#-$500,y_vel(a0)
+		clr.b	double_jump_flag(a0)		; allow another dash
+		move.b	#2,jumping(a0)			; the bounce is not cut short
+		moveq	#1,d0
+		rts
+; ---------------------------------------------------------------------------
+
+.none:
+		moveq	#0,d0
+		rts
+; End of function Touch_ResetAirDash
+	endif
 ; ---------------------------------------------------------------------------
 
 Touch_Enemy:
@@ -21061,6 +21093,10 @@ Touch_EnemyNormal:
 		bsr.w	HUD_AddToScore
 		move.l	#Obj_Explosion,(a1)		; Create enemy destruction explosion
 		move.b	#0,routine(a1)
+	if FeatureHomingAttack
+		bsr.w	Touch_ResetAirDash		; after an air dash, bounce straight up instead
+		bne.s	.return
+	endif
 		tst.w	y_vel(a0)			; Is player moving up?
 		bmi.s	.bounceplayerdown		; If so, branch
 		move.w	y_pos(a0),d0
@@ -21077,6 +21113,8 @@ Touch_EnemyNormal:
 
 	.bounceplayerup:
 		subi.w	#$100,y_vel(a0)			; Bounce up
+
+	.return:
 		rts
 ; ---------------------------------------------------------------------------
 Enemy_Points:
@@ -23551,8 +23589,8 @@ Sonic_JumpHeight:
 loc_118D2:
 		cmp.w	y_vel(a0),d1		; is y speed greater than 4? (2 if underwater)
 		ble.w	Sonic_ShieldMoves	; if not, branch
-	if FeatureAirRoll
-		cmpi.b	#2,jumping(a0)		; curled up by an Air Roll, not by a jump?
+	if FeatureAirRoll|FeatureHomingAttack
+		cmpi.b	#2,jumping(a0)		; airborne from an Air Roll or an air dash, not from a jump?
 		beq.w	Sonic_ShieldMoves	; then the button never cuts the speed short
 	endif
 	if FeatureAirRoll
@@ -23593,13 +23631,21 @@ Sonic_ShieldMoves:
 		tst.b	(Super_Sonic_Knux_flag).w	; check Super-state
 		beq.s	Sonic_FireShield		; if not in a super-state, branch
 		bmi.w	Sonic_HyperDash			; if Hyper, branch
+	if FeatureHomingAttack
+		bra.w	Sonic_AirDash			; Super Sonic dashes too
+	else
 		move.b	#1,double_jump_flag(a0)
 		rts
+	endif
 ; ---------------------------------------------------------------------------
 
 Sonic_FireShield:
 		btst	#Status_Invincible,status_secondary(a0)	; first, does Sonic have invincibility?
+	if FeatureHomingAttack
+		bne.w	Sonic_AirDash				; if yes, the shields are inactive: dash
+	else
 		bne.w	locret_11A14				; if yes, branch
+	endif
 		btst	#Status_FireShield,status_secondary(a0)	; does Sonic have a Fire Shield?
 		beq.s	Sonic_LightningShield			; if not, branch
 		move.b	#1,(Shield+anim).w
@@ -23657,20 +23703,169 @@ loc_119E8:
 		cmpi.w	#50,(Ring_count).w	; does Sonic have at least 50 rings?
 		blo.s	Sonic_InstaShield	; if not, perform Insta-Shield
 		tst.b	(Update_HUD_timer).w
-		bne.s	Sonic_Transform
+		bne.w	Sonic_Transform
 
 Sonic_InstaShield:
+	if FeatureHomingAttack
+		bra.w	Sonic_AirDash				; the Homing Attack replaces the Insta-Shield
+	else
 		btst	#Status_Shield,status_secondary(a0)	; does Sonic have an S2 shield? (the elementals were already filtered out at this point)
 		bne.s	locret_11A14				; if yes, branch
 		move.b	#1,(Shield+anim).w
 		move.b	#1,double_jump_flag(a0)
 		move.w	#sfx_InstaAttack,d0
 		jmp	(Play_SFX).l
+	endif
 ; ---------------------------------------------------------------------------
 
 locret_11A14:
 		rts
 ; ---------------------------------------------------------------------------
+
+	if FeatureHomingAttack
+; ---------------------------------------------------------------------------
+; Homing Attack and Jump Dash
+; Based on https://info.sonicretro.org/SCHG_How-to:Create_a_Homing_Attack_from_scratch
+; and Sonic 1 Improvements' Sonic_HomingAttack. Dashes at speed 8 toward the
+; nearest badnik or monitor ahead, or straight ahead without a target.
+; double_jump_flag = 2 marks the dash as used until Sonic lands or breaks the
+; target; 1 would be the Insta-Shield's attacking state in TouchResponse.
+; ---------------------------------------------------------------------------
+
+Sonic_AirDash:
+		move.b	#2,double_jump_flag(a0)		; one dash until Sonic lands or hits a target
+		move.b	#2,jumping(a0)			; JumpHeight must not cut the dash short
+		move.b	#2,anim(a0)			; dash curled up, so targets break
+		bset	#Status_Roll,status(a0)
+		moveq	#signextendB(sfx_InstaAttack),d0
+		jsr	(Play_SFX).l
+		tst.b	(Reverse_gravity_flag).w	; homing works in normal gravity only
+		bne.s	.jumpDash
+		bsr.w	Sonic_FindHomingTarget
+		beq.s	.jumpDash			; no target in range
+		move.w	x_pos(a2),d1
+		sub.w	x_pos(a0),d1
+		movea.w	a2,a1
+		bsr.w	Sonic_HomingTargetY		; aim where the target was picked
+		sub.w	y_pos(a0),d2
+		jsr	(GetArcTan).l
+		jsr	(GetSineCosine).l
+		asl.w	#3,d0
+		asl.w	#3,d1
+		move.w	d0,y_vel(a0)
+		move.w	d1,x_vel(a0)
+		rts
+; ---------------------------------------------------------------------------
+
+.jumpDash:
+		clr.w	y_vel(a0)
+		move.w	#$800,d0
+		btst	#Status_Facing,status(a0)	; facing left?
+		beq.s	.faceRight
+		neg.w	d0
+
+.faceRight:
+		move.w	d0,x_vel(a0)
+		rts
+; End of function Sonic_AirDash
+
+; ---------------------------------------------------------------------------
+; Picks the nearest homing target ahead of Sonic within 150 pixels on both
+; axes: a badnik that is not a boss, or a monitor that is still whole. Only
+; objects in Collision_response_list count: the ones that could be touched
+; last frame, so nothing off screen, inactive or invisible is picked.
+; Output: a2 = target and Z clear, or Z set when there is none
+; ---------------------------------------------------------------------------
+
+Sonic_FindHomingTarget:
+		move.l	a4,-(sp)			; a4 points at Sonic's speed values
+		moveq	#-1,d3				; best squared distance so far
+		lea	(Collision_response_list).w,a4
+		move.w	(a4)+,d6			; size of the list in bytes
+		beq.s	.done
+
+.nextObject:
+		movea.w	(a4)+,a1
+		move.b	collision_flags(a1),d1
+		beq.s	.advance			; no collision any more
+		cmpi.b	#$40,d1
+		blo.s	.badnik				; type 00: an enemy
+		cmpi.b	#$46,d1				; a monitor?
+		bne.s	.advance
+		cmpi.b	#4,routine(a1)			; already breaking?
+		bhs.s	.advance
+		bra.s	.checkRange
+; ---------------------------------------------------------------------------
+
+.badnik:
+		tst.b	boss_hitcount2(a1)		; bosses and other multi-hit enemies are not targets
+		bne.s	.advance
+
+.checkRange:
+		move.w	x_pos(a1),d1
+		sub.w	x_pos(a0),d1
+		btst	#Status_Facing,status(a0)
+		bne.s	.facingLeft
+		tst.w	d1				; must be on Sonic's right
+		bmi.s	.advance
+		bra.s	.xDistance
+; ---------------------------------------------------------------------------
+
+.facingLeft:
+		tst.w	d1				; must be on Sonic's left
+		bpl.s	.advance
+		neg.w	d1
+
+.xDistance:
+		cmpi.w	#150,d1
+		bhi.s	.advance
+		bsr.s	Sonic_HomingTargetY
+		sub.w	y_pos(a0),d2
+		bpl.s	.yPositive
+		neg.w	d2
+
+.yPositive:
+		cmpi.w	#150,d2
+		bhi.s	.advance
+		muls.w	d1,d1
+		muls.w	d2,d2
+		add.l	d2,d1
+		cmp.l	d3,d1
+		bhs.s	.advance
+		move.l	d1,d3
+		movea.w	a1,a2
+
+.advance:
+		subq.w	#2,d6
+		bne.s	.nextObject
+
+.done:
+		movea.l	(sp)+,a4			; (movea leaves the flags alone)
+		addq.l	#1,d3				; Z set only when nothing was picked
+		rts
+; End of function Sonic_FindHomingTarget
+
+; ---------------------------------------------------------------------------
+; Aims at the upper third of the target's collision box, so low targets do not
+; pull Sonic into the floor. Touch_Sizes holds the half-height h; the point is
+; y_pos - floor(2*h/3).
+; Input: a1 = target; output: d2 = Y to aim at. Clobbers d4/a3.
+; ---------------------------------------------------------------------------
+
+Sonic_HomingTargetY:
+		moveq	#0,d4
+		move.b	collision_flags(a1),d4
+		andi.w	#$3F,d4
+		add.w	d4,d4
+		lea	(Touch_Sizes+1).l,a3
+		move.b	(a3,d4.w),d4			; half-height
+		add.w	d4,d4
+		divu.w	#3,d4
+		move.w	y_pos(a1),d2
+		sub.w	d4,d2
+		rts
+; End of function Sonic_HomingTargetY
+	endif
 
 Sonic_Transform:
 		move.b	#1,(Super_palette_status).w	; set Super/Hyper palette status to 'fading'
@@ -24587,6 +24782,10 @@ loc_121D8:
 		bne.s	loc_1222A
 		btst	#Status_BublShield,status_secondary(a0)
 		beq.s	loc_1222A
+	if FeatureHomingAttack
+		cmpi.b	#1,double_jump_flag(a0)	; a bubble attack, not an air dash during invincibility?
+		bne.s	loc_1222A
+	endif
 		bsr.s	BubbleShield_Bounce
 
 loc_1222A:
@@ -28832,8 +29031,8 @@ Tails_JumpHeight:
 loc_150F0:
 		cmp.w	y_vel(a0),d1
 		ble.s	Tails_Test_For_Flight
-	if FeatureAirRoll
-		cmpi.b	#2,jumping(a0)		; curled up by an Air Roll, not by a jump?
+	if FeatureAirRoll|FeatureHomingAttack
+		cmpi.b	#2,jumping(a0)		; airborne from an Air Roll or an air dash, not from a jump?
 		beq.w	Tails_Test_For_Flight	; then the button never cuts the speed short
 	endif
 	if FeatureAirRoll
@@ -32788,8 +32987,8 @@ Knux_JumpHeight:
 loc_17800:
 		cmp.w	y_vel(a0),d1
 		ble.w	Knux_Test_For_Glide
-	if FeatureAirRoll
-		cmpi.b	#2,jumping(a0)		; curled up by an Air Roll, not by a jump?
+	if FeatureAirRoll|FeatureHomingAttack
+		cmpi.b	#2,jumping(a0)		; airborne from an Air Roll or an air dash, not from a jump?
 		beq.w	Knux_Test_For_Glide	; then the button never cuts the speed short
 	endif
 	if FeatureAirRoll

@@ -8,12 +8,26 @@ The `Feature*` switches in `sonic3k.asm` turn this project's gameplay additions 
 |---|---|
 | `FeatureRollJumpSteering` | A jump from a roll locks midair steering again. |
 | `FeatureAirRoll` | Pressing A/B/C in the air no longer curls the player into a ball, and a fresh press while rising fast no longer reaches the shield move, flight or glide. |
+| `FeatureHomingAttack` | Sonic's A/B/C in the air does the Insta-Shield again, and invincibility blocks his air move as in the original game. |
 | `FeatureInstantTally` | Holding A/B/C no longer finishes the act bonus count at once. |
 | `FeatureStarPostRings` | Restarting from a Star Post starts with no rings. Returning from a Special Stage or bonus stage still keeps them. |
 | `FeatureSmoothSlots` | The Slots bonus stage rotates in 64 steps again. |
 | `FeatureBlueKnuckles` | The Level Select character number stops at 03. The fixes that keep player modes above 3 working stay in. |
 
 S1's `FeatureLamppostRings` is `FeatureStarPostRings` here; the other names match Sonic 1 Improvements.
+
+## Air moves
+
+With `FeatureHomingAttack`, a fresh A/B/C press in the air after a jump or an Air Roll (`Sonic_ShieldMoves`) does, in this order:
+
+1. Hyper Sonic: the Hyper Dash, as before.
+2. With all emeralds and 50 rings: the Super transformation, as before.
+3. Not invincible, with a fire, lightning or bubble shield: that shield's move.
+4. Otherwise, including Super Sonic, invincibility (whose stars hide the shield) and the blue shield: `Sonic_AirDash`. It aims at the nearest badnik or whole monitor ahead of Sonic within 150 pixels on both axes and dashes at speed 8 toward the upper third of its collision box (`Sonic_HomingTargetY`), as in Sonic 1 Improvements. Without a target it is a Jump Dash: speed 8 forward with the vertical speed cleared. Reverse gravity always gives the Jump Dash.
+
+Targets come from `Collision_response_list`, so only objects that could be touched in the last frame count; bosses (`boss_hitcount2` set) are never picked. One dash is allowed per jump (`double_jump_flag` = 2). Breaking a badnik or monitor with it (`Touch_ResetAirDash`) stops Sonic and bounces him up at -$500, and he may dash again. The Insta-Shield object stays in the Shield slot but is never started.
+
+`jumping` = 2 marks a jump the button may not cut short: the Air Roll sets it, so a spring launch keeps its height when the button is released, and so do the dash and the bounce after a hit. A normal jump is still `jumping` = 1.
 
 ## Bug fixes
 
