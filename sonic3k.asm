@@ -487,6 +487,7 @@ SonicAndKnucklesStartup:
 		bsr.w	SndDrvInit
 		bsr.w	Init_Controllers
 		jsr	(SRAM_Load).l
+		jsr	(Settings_Load).l		; Level Select unlock, cheats and character
 		move.b	#GameMode_SegaScreen,(Game_mode).w
 
 GameLoop:
@@ -1689,8 +1690,7 @@ Pause_Loop:
 		beq.s	Pause_NoSlowMo
 		btst	#button_A,(Ctrl_1_pressed).w
 		beq.s	Pause_ChkFrameAdvance	; branch if A isn't pressed
-		move.b	#GameMode_TitleScreen,(Game_mode).w	; set to title screen
-		nop
+		move.b	#GameMode_LevelSelect,(Game_mode).w	; back to the Level Select, as in s2_improvements
 		bra.s	Pause_ResumeMusic
 ; ---------------------------------------------------------------------------
 
@@ -6228,6 +6228,7 @@ Obj_TitleSelection:
 		move.l	#Obj_TitleSelection_Main,(a0)
 
 Obj_TitleSelection_Main:
+		jsr	(TitleUnlockCheat).l		; Up, Down, Down, Down, Left, Right
 		moveq	#0,d2
 		move.b	(Title_screen_option).w,d2
 		move.b	(Ctrl_1_pressed).w,d0
@@ -10181,6 +10182,7 @@ LevelSelect_Main:	; routine running during level select
 ; ---------------------------------------------------------------------------
 
 LevelSelect_PressStart:
+		jsr	(Settings_Save).l		; remember the character
 		tst.w	(SK_alone_flag).w
 		beq.s	loc_7CA0
 		cmpi.w	#3,(Player_option).w
@@ -15915,6 +15917,13 @@ Write_SaveGame:
 		movea.l	(sp)+,a0
 		rts
 ; End of function Write_SaveGame
+
+; ---------------------------------------------------------------------------
+; This project's settings record and cheats (kept below $200000 with the
+; game's own SRAM code)
+; ---------------------------------------------------------------------------
+		include "Improvements/Settings.asm"
+		include "Improvements/Cheats.asm"
 
 ; ---------------------------------------------------------------------------
 SaveGame_NextLevel:
@@ -47248,6 +47257,7 @@ sub_2219E:
 		moveq	#1,d1
 		move.b	d1,(a4)
 		move.b	d1,Slow_motion_flag-Level_select_flag(a4)
+		jsr	(Settings_Save).l		; remember the unlock
 		move.w	d0,d1
 		moveq	#signextendB(sfx_RingRight),d0
 		jsr	(Play_SFX).l
@@ -83337,6 +83347,7 @@ loc_3E5CC:
 		moveq	#1,d1
 		move.b	d1,(a4)
 		move.b	d1,1(a4)
+		jsr	(Settings_Save).l		; remember the unlock or DEBUG
 		move.w	d0,d1
 		moveq	#signextendB(sfx_RingRight),d0
 		jsr	(Play_SFX).l

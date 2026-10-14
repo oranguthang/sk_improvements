@@ -280,7 +280,7 @@ SRAM_S3game_backup	ds.w SRAM_S3game_size	; $34 bytes
 SRAM_SKgame	ds.w SRAM_SKgame_size	; $54 bytes
 	ds.w 2	; unused
 SRAM_SKgame_backup	ds.w SRAM_SKgame_size	; $54 bytes
-	ds.w $15	; unused
+SRAM_settings	ds.w $15	; $15 bytes: this project's settings record (Improvements/Settings.asm); unused by the game
 SRAM_end	=		*
 	dephase
 
@@ -1014,7 +1014,10 @@ Graphics_flags :=		*		; S3 uses a different address
 			ds.b 1				; unused
 Debug_mode_flag :=		*		; S3 uses a different address
 				ds.w 1
-			ds.l 1				; unused
+Cheat_all_emeralds		ds.b 1			; CHEATS: count as having all seven Chaos Emeralds
+Cheat_super_rings		ds.b 1			; CHEATS: rings needed to turn Super (0, 10 or 50)
+Cheat_ring_drain		ds.b 1			; CHEATS: Super forms lose a ring every second
+Cheat_god_mode			ds.b 1			; CHEATS: nothing hurts or kills the player
 Level_select_flag :=		*		; S3 uses a different address
 				ds.b 1
 Slow_motion_flag :=		*		; S3 uses a different address
