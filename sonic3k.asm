@@ -74,8 +74,10 @@ FeatureSpecialStageSelect = 1
 ; Optional alternatives, off by default.
 FeatureInfiniteLives = 0
 ;	| If 1, hide the lives counter: no Game Over, extra lives or continues; 1-ups give 10 rings
+FeatureCDDrowning = 0
+;	| If 1, low air beeps every second as in Sonic CD instead of playing the countdown music
 
-	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera|FeatureExtraLives|FeatureInvincibilityFlash|FeatureFastSoundTest|FeatureSpecialStageSelect|FeatureInfiniteLives)&~1
+	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera|FeatureExtraLives|FeatureInvincibilityFlash|FeatureFastSoundTest|FeatureSpecialStageSelect|FeatureInfiniteLives|FeatureCDDrowning)&~1
 		error "Feature options must be 0 or 1"
 	endif
 
@@ -22307,8 +22309,10 @@ Sonic_ChkInvin:	; Checks if invincibility has expired and disables it if it has.
 		bne.s	Sonic_ChkShoes			; if time is still left, branch
 		tst.b	(Boss_flag).w		; Don't change music if in a boss fight
 		bne.s	Sonic_RmvInvin
+	if FeatureCDDrowning=0
 		cmpi.b	#12,air_left(a0)	; Don't change music if drowning
 		blo.s	Sonic_RmvInvin
+	endif
 		move.w	(Current_music).w,d0
 		jsr	(Play_Music).l		; stop playing invincibility theme and resume normal level music
 
@@ -26915,8 +26919,10 @@ loc_13912:
 		bne.s	loc_1394E
 		tst.b	(Boss_flag).w
 		bne.s	loc_13948
-		cmpi.b	#12,air_left(a0)
+	if FeatureCDDrowning=0
+		cmpi.b	#12,air_left(a0)		; don't change music if drowning
 		blo.s	loc_13948
+	endif
 		move.w	(Current_music).w,d0
 		jsr	(Play_Music).l
 
@@ -31166,8 +31172,10 @@ loc_1665E:
 		bne.s	loc_1669A
 		tst.b	(Boss_flag).w
 		bne.s	loc_16694
-		cmpi.b	#12,air_left(a0)
+	if FeatureCDDrowning=0
+		cmpi.b	#12,air_left(a0)		; don't change music if drowning
 		blo.s	loc_16694
+	endif
 		move.w	(Current_music).w,d0
 		jsr	(Play_Music).l
 
@@ -34219,11 +34227,20 @@ AirCountdown_Countdown:
 		beq.s	AirCountdown_WarnSound	; play ding sound if air is 15
 		cmpi.w	#12,d0
 		bhi.s	AirCountdown_ReduceAir
+	if FeatureCDDrowning
+		; As in Sonic CD the level music keeps playing; player 1 hears the
+		; warning every second instead of the countdown music
+		tst.b	parent+1(a0)
+		bne.s	loc_184E8
+		moveq	#signextendB(sfx_AirDing),d0
+		jsr	(Play_SFX).l
+	else
 		bne.s	loc_184E8
 		tst.b	parent+1(a0)
 		bne.s	loc_184E8
 		moveq	#signextendB(mus_Drowning),d0
 		jsr	(Play_Music).l
+	endif
 
 loc_184E8:
 		subq.b	#1,$36(a0)
@@ -34364,6 +34381,9 @@ locret_18680:
 
 
 Player_ResetAirTimer:
+	if FeatureCDDrowning
+		bra.s	loc_186BC		; the level music never stopped
+	endif
 		cmpi.b	#12,air_left(a1)
 		bhi.s	loc_186BC		; branch if countdown hasn't started yet
 		cmpa.w	#Player_1,a1
