@@ -30,6 +30,8 @@ Two optional alternatives are off by default; 1 enables them:
 
 S1's `FeatureLamppostRings` is `FeatureStarPostRings` here; the other names match Sonic 1 Improvements. S1's `FeatureCentiseconds` is not available: levels have no free video memory for two more clock digits.
 
+There is no `FeatureVictoryPoses`: Sonic 3 & Knuckles already has it. After the end-of-act sign or the capsule, `Set_PlayerEndingPose` stops the player, locks the controls and plays animation $13, a victory pose for each of Sonic, Tails and Knuckles, while the results come in.
+
 ## Air moves
 
 With `FeatureHomingAttack`, a fresh A/B/C press in the air after a jump or an Air Roll (`Sonic_ShieldMoves`) does, in this order:
