@@ -15947,6 +15947,7 @@ Write_SaveGame:
 ; ---------------------------------------------------------------------------
 		include "Improvements/Settings.asm"
 		include "Improvements/Cheats.asm"
+		include "Improvements/DebugHud.asm"
 
 ; ---------------------------------------------------------------------------
 SaveGame_NextLevel:
@@ -17747,7 +17748,8 @@ loc_DB92:
 		move.w	(a1)+,d4
 		subq.w	#1,d4
 		bmi.s	locret_DBB2
-		jmp	(sub_1AF6C).l
+		jsr	(sub_1AF6C).l
+		jmp	(HudDebug_DrawSprite).l		; debug coordinates
 ; ---------------------------------------------------------------------------
 
 locret_DBB2:
@@ -17801,8 +17803,9 @@ UpdateHUD:
 		lea	(VDP_data_port).l,a6
 		tst.w	(Competition_mode).w
 		bne.w	loc_DE7E
-		tst.w	(Debug_placement_mode).w
-		bne.w	loc_DDF4
+		jsr	(HudDebug_Overlay).l		; debug coordinates in the upper right corner
+		; Object placement keeps SCORE, TIME and RINGS too: the coordinates are
+		; in the overlay instead of the score (loc_DDF4)
 		tst.b	(Update_HUD_score).w
 		beq.s	loc_DD36
 		clr.b	(Update_HUD_score).w
