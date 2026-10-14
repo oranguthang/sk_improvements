@@ -138,3 +138,26 @@ LevelSelect_SpecialStageNumber:
 		move.w	d0,(RAM_start+levsel_ss_number).l
 		rts
 ; End of function LevelSelect_SpecialStageNumber
+
+; ---------------------------------------------------------------------------
+; FeatureInfiniteLives: a 1-up gives 10 rings instead, as in s1_improvements
+; and s2_improvements (the 10-ring monitor's own code covers 1-up monitors)
+; ---------------------------------------------------------------------------
+
+InfiniteLives_TenRings:
+		addi.w	#10,(Ring_count).w
+		cmpi.w	#999,(Ring_count).w
+		blo.s	.counted
+		move.w	#999,(Ring_count).w
+
+.counted:
+		addi.w	#10,(Total_ring_count).w
+		cmpi.w	#999,(Total_ring_count).w
+		blo.s	.total
+		move.w	#999,(Total_ring_count).w
+
+.total:
+		ori.b	#1,(Update_HUD_ring_count).w
+		moveq	#signextendB(sfx_RingRight),d0
+		jmp	(Play_SFX).l
+; End of function InfiniteLives_TenRings

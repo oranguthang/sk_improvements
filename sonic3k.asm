@@ -71,7 +71,11 @@ FeatureFastSoundTest = 1
 FeatureSpecialStageSelect = 1
 ;	| Left/Right on SPECIAL STAGE in the Level Select choose the stage
 
-	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera|FeatureExtraLives|FeatureInvincibilityFlash|FeatureFastSoundTest|FeatureSpecialStageSelect)&~1
+; Optional alternatives, off by default.
+FeatureInfiniteLives = 0
+;	| If 1, hide the lives counter: no Game Over, extra lives or continues; 1-ups give 10 rings
+
+	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera|FeatureExtraLives|FeatureInvincibilityFlash|FeatureFastSoundTest|FeatureSpecialStageSelect|FeatureInfiniteLives)&~1
 		error "Feature options must be 0 or 1"
 	endif
 
@@ -12367,6 +12371,9 @@ loc_984C:
 		moveq	#signextendB(sfx_RingRight),d0
 		tst.b	(Blue_spheres_stage_flag).w
 		bne.s	loc_98A6
+	if FeatureInfiniteLives
+		bra.s	loc_98A6			; no continues or lives
+	endif
 		cmpi.w	#50,(Special_stage_ring_count).w
 		blo.s	loc_987E
 		bset	#0,(Special_stage_extra_life_flags).w
@@ -17804,6 +17811,9 @@ loc_DB92:
 		adda.w	(a1,d4.w),a1
 		move.w	(a1)+,d4
 		subq.w	#1,d4
+	if FeatureInfiniteLives
+		subq.w	#2,d4				; leave out the lives icon and count
+	endif
 		bmi.s	locret_DBB2
 		jsr	(sub_1AF6C).l
 		jmp	(HudDebug_DrawSprite).l		; debug coordinates
@@ -17842,6 +17852,9 @@ HUD_AddToScore:
 		cmp.l	(Next_extra_life_score).w,d0	; If score is greater than next 50000 point increment
 		blo.s	.end
 		addi.l	#5000,(Next_extra_life_score).w
+	if FeatureInfiniteLives
+		rts					; the score gives no lives
+	endif
 		addq.b	#1,(Life_count).w	; Give an additional extra life
 		addq.b	#1,(Update_HUD_life_count).w
 		move.w	#mus_ExtraLife,d0				; Play the 1up song
@@ -25183,8 +25196,12 @@ loc_12432:
 		move.w	#60,$3E(a0)
 		move.b	#0,(Respawn_table_keep).w
 		addq.b	#1,(Update_HUD_life_count).w
+	if FeatureInfiniteLives
+		bra.s	loc_12498			; no lives to lose: restart the act
+	else
 		subq.b	#1,(Life_count).w
 		bne.s	loc_12498
+	endif
 		move.w	#0,$3E(a0)
 		move.l	#Obj_GameOver,(Reserved_object_3).w
 		move.l	#Obj_GameOver,(Dynamic_object_RAM).w
@@ -36152,6 +36169,9 @@ GiveRing_1P:
 		bhs.s	JmpTo_Play_SFX			; if yes, play the ring sound
 		addq.w	#1,(Ring_count).w		; add 1 to the ring count
 		ori.b	#1,(Update_HUD_ring_count).w	; set flag to update the ring counter in the HUD
+	if FeatureInfiniteLives
+		bra.s	JmpTo_Play_SFX			; rings give no lives
+	endif
 	if FeatureExtraLives
 		jsr	(ExtraLives_Check1P).l		; a life for every 100 rings?
 		beq.s	JmpTo_Play_SFX			; if not, play the ring sound
@@ -41576,6 +41596,9 @@ Monitor_Give_Eggman:
 ; ---------------------------------------------------------------------------
 
 Monitor_Give_1up:
+	if FeatureInfiniteLives
+		bra.w	Monitor_Give_Rings		; 10 rings instead of a life
+	endif
 		addq.w	#1,(Monitors_broken).w
 		addq.b	#1,(Life_count).w
 		addq.b	#1,(Update_HUD_life_count).w
@@ -41602,6 +41625,9 @@ loc_1D8CC:
 
 loc_1D8DA:
 		ori.b	#1,(a3)
+	if FeatureInfiniteLives
+		bra.s	loc_1D8F6			; rings give no lives
+	endif
 	if FeatureExtraLives
 		jsr	(ExtraLives_Check).l		; a life for every 100 rings?
 		bne.s	loc_1D8FE
@@ -100013,6 +100039,9 @@ loc_4BDFC:
 
 loc_4BE10:
 		jsr	(GiveRing).l
+	if FeatureInfiniteLives
+		bra.s	loc_4BE32			; no continues
+	endif
 		cmpi.w	#50,(Ring_count).w
 		blo.s	loc_4BE32
 		bset	#0,(Extra_life_flags).w
@@ -128696,6 +128725,9 @@ off_6110E:
 ; ---------------------------------------------------------------------------
 
 loc_61120:
+	if FeatureInfiniteLives
+		jmp	(InfiniteLives_TenRings).l	; 10 rings instead of a life
+	endif
 		addq.b	#1,(Life_count).w
 		addq.b	#1,(Update_HUD_life_count).w
 		moveq	#signextendB(mus_ExtraLife),d0
@@ -181931,6 +181963,9 @@ loc_86132:
 ; ---------------------------------------------------------------------------
 
 loc_8613A:
+	if FeatureInfiniteLives
+		jmp	(InfiniteLives_TenRings).l	; 10 rings instead of a life
+	endif
 		addq.w	#1,(Monitors_broken).w		; Add an extra life
 		addq.b	#1,(Life_count).w
 		addq.b	#1,(Update_HUD_life_count).w
