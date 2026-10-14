@@ -12,6 +12,10 @@ See also:
 
 Build the game with `buildS3Complete.bat` (or `lua buildS3Complete.lua`), which writes `sonic3k.bin`: Sonic 3 & Knuckles with the Sonic 3 data built in. The Sonic & Knuckles-only build was removed, and the standalone Sonic 3 build (`buildS3`, `s3.asm`) is kept as upstream left it. The switches `FixBugs` and `Feature*` are near the top of `sonic3k.asm`. Every `Feature*` switch is 1 by default; 0 restores the original behaviour of that addition. See the [modding reference](docs/modding.md) for the feature options, the ported bug fixes and the water settings table. Keep both values of every switch assemblable when changing shared routines.
 
+## Cheats and settings
+
+The Level Select (unlocked by the game's Angel Island vine code or the Sonic 1 title code Up, Down, Down, Down, Left, Right) has a CHEATS page: ALL EMERALDS, DEBUG, SUPER RINGS, RING DRAIN and GOD MODE. The unlock, the cheats and the Level Select character are kept in an SRAM record that leaves the save files untouched, and debug mode shows the coordinates in the upper right corner. See [settings, cheats and SRAM](docs/settings.md).
+
 ## Error diagnostics
 
 Every build includes Vladikcomper's MD Debugger: a crash shows the exception screen with the faulting label, registers, stack and a symbolic backtrace instead of restarting the game. `buildS3Complete.lua --no-symbols` leaves out the symbol names. See the [debugger guide](_debug/md-debugger/README.md) for controls, the layout rule and tool requirements.
