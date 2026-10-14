@@ -68,3 +68,73 @@ InvStars_Draw:
 .hide:
 		rts
 ; End of function InvStars_Draw
+
+; ---------------------------------------------------------------------------
+; FeatureSpecialStageSelect: Left/Right on the SPECIAL STAGE items of the
+; Level Select choose the stage, shown as 1-7 after "SPECIAL STG", as in
+; s1_improvements and s2_improvements. Starting a Special Stage from the
+; Level Select then plays that stage (Special_stage_select), even if its
+; emerald was earned already.
+; ---------------------------------------------------------------------------
+levsel_ss_number = planeLocH28($16+12,$13)	; after "SPECIAL STG"
+
+; Called by LevSelControls_SwitchSide; returns Z=0 when Left/Right changed the
+; stage, so the column switch is skipped.
+LevelSelect_SpecialStageLR:
+		move.w	(Level_select_option).w,d0
+		cmpi.w	#$1E,d0				; SPECIAL STAGE 1 or 2?
+		blo.s	.none
+		cmpi.w	#$1F,d0
+		bhi.s	.none
+		move.b	(Ctrl_1_pressed).w,d1
+		andi.b	#button_left_mask|button_right_mask,d1
+		beq.s	.none
+		bsr.s	LevelSelect_GetSpecialStage
+		btst	#button_left,d1
+		beq.s	.right
+		subq.w	#1,d0
+		bpl.s	.set
+		moveq	#7-1,d0
+		bra.s	.set
+; ---------------------------------------------------------------------------
+
+.right:
+		addq.w	#1,d0
+		cmpi.w	#7,d0
+		blo.s	.set
+		moveq	#0,d0
+
+.set:
+		move.b	d0,(Current_special_stage).w
+		bsr.s	LevelSelect_SpecialStageNumber
+		moveq	#signextendB(sfx_Switch),d0
+		jsr	(Play_SFX).l
+		move	#0,ccr				; Z=0
+		rts
+; ---------------------------------------------------------------------------
+
+.none:
+		move	#4,ccr				; Z=1
+		rts
+; End of function LevelSelect_SpecialStageLR
+
+; d0.w = the chosen stage, 0-6
+LevelSelect_GetSpecialStage:
+		moveq	#0,d0
+		move.b	(Current_special_stage).w,d0
+		cmpi.b	#7,d0
+		blo.s	.done
+		moveq	#0,d0
+
+.done:
+		rts
+; End of function LevelSelect_GetSpecialStage
+
+; Writes the stage number into the Level Select plane map in RAM_start, from
+; where LevelSelect_MarkFields draws the item every frame.
+LevelSelect_SpecialStageNumber:
+		bsr.s	LevelSelect_GetSpecialStage
+		addi.w	#16+1,d0			; menu font digits start at 16; stages count from 1
+		move.w	d0,(RAM_start+levsel_ss_number).l
+		rts
+; End of function LevelSelect_SpecialStageNumber

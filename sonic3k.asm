@@ -68,8 +68,10 @@ FeatureInvincibilityFlash = 1
 ;	| The invincibility stars blink during their last two seconds
 FeatureFastSoundTest = 1
 ;	| B+A steps the Level Select sound test back by $10 (A alone steps ahead)
+FeatureSpecialStageSelect = 1
+;	| Left/Right on SPECIAL STAGE in the Level Select choose the stage
 
-	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera|FeatureExtraLives|FeatureInvincibilityFlash|FeatureFastSoundTest)&~1
+	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera|FeatureExtraLives|FeatureInvincibilityFlash|FeatureFastSoundTest|FeatureSpecialStageSelect)&~1
 		error "Feature options must be 0 or 1"
 	endif
 
@@ -10114,6 +10116,10 @@ LevelSelect_S2Options:
 		move.w	d0,(a2)+
 		dbf	d1,.cheatstext
 
+	if FeatureSpecialStageSelect
+		jsr	(LevelSelect_SpecialStageNumber).l
+	endif
+
 		; Send our built plane map to VRAM
 		lea	(RAM_start).l,a1
 		move.l	#vdpComm(VRAM_Plane_A_Name_Table,VRAM,WRITE),d0
@@ -10222,6 +10228,18 @@ loc_7CA0:
 		beq.w	LevelSelect_Main	; If entry is $5555, don't do anything
 		move.b	#3,(Life_count).w
 		move.b	#0,(SK_special_stage_flag).w
+	if FeatureSpecialStageSelect
+		move.b	#0,(Special_stage_select).w
+		cmpi.w	#$4000,d0			; a Special Stage?
+		blo.s	.notSpecial
+		move.w	d0,-(sp)
+		jsr	(LevelSelect_GetSpecialStage).l
+		move.b	d0,(Current_special_stage).w
+		move.b	#1,(Special_stage_select).w	; play exactly this stage
+		move.w	(sp)+,d0
+
+.notSpecial:
+	endif
 		cmpi.w	#$4000,d0			; Is Special Stage 1 selected?
 		beq.w	LevelSelect_SpecialStageCheck	; If so, branch
 		cmpi.w	#$4001,d0			; Is Special Stage 2 selected?
@@ -10468,6 +10486,10 @@ locret_7F06:
 ; ---------------------------------------------------------------------------
 
 LevSelControls_SwitchSide:
+	if FeatureSpecialStageSelect
+		jsr	(LevelSelect_SpecialStageLR).l	; Left/Right on SPECIAL STAGE pick the stage
+		bne.s	loc_7F1E
+	endif
 		move.b	(Ctrl_1_pressed).w,d1
 		andi.b	#button_left_mask|button_right_mask,d1
 		beq.s	loc_7F1E
@@ -10708,7 +10730,11 @@ LevelSelectText:
 		levselstr "DEATHEGG"
 		levselstr "THE DOOMSDAY"
 		levselstr "BONUS"
+	if FeatureSpecialStageSelect
+		levselstr "SPECIAL STG"			; the stage number follows
+	else
 		levselstr "SPECIAL STAGE"
+	endif
 		levselstr "SOUND TEST  *"
 		even
 AniPLC_SONICMILES: zoneanimstart
@@ -10979,6 +11005,14 @@ loc_85F4:
 loc_8606:
 		moveq	#0,d0
 		move.b	(Current_special_stage).w,d0
+	if FeatureSpecialStageSelect
+		tst.b	(Special_stage_select).w	; chosen in the Level Select?
+		beq.s	.search
+		clr.b	(Special_stage_select).w
+		bra.s	loc_8630
+
+.search:
+	endif
 		cmpi.b	#7,d3
 		bhs.s	loc_8630
 		moveq	#5,d1
@@ -12781,7 +12815,7 @@ loc_9C80:
 		lsl.w	#5,d1
 		or.b	d0,d1
 		cmp.w	(Special_stage_interact).w,d1
-		bne.s	locret_9D1C
+		bne.w	locret_9D1C
 		move.w	(Special_stage_X_pos).w,d0
 		or.w	(Special_stage_Y_pos).w,d0
 		andi.w	#$E0,d0
@@ -12796,6 +12830,13 @@ loc_9C80:
 loc_9CCE:
 		cmpi.b	#7,(a2)
 		bhs.s	loc_9CE6
+	if FeatureSpecialStageSelect
+		lea	(Collected_emeralds_array).w,a1
+		moveq	#0,d0
+		move.b	(Current_special_stage).w,d0
+		btst	#0,(a1,d0.w)			; replaying a stage whose emerald was earned?
+		bne.s	loc_9CE6			; then it is not counted twice
+	endif
 		addq.b	#1,(a2)
 		lea	(Collected_emeralds_array).w,a1
 		moveq	#0,d0

@@ -834,7 +834,7 @@ Current_act			ds.b 1
 Life_count			ds.b 1
 			ds.b 3				; unused
 Current_special_stage		ds.b 1
-			ds.b 1				; unused
+Special_stage_select		ds.b 1			; FeatureSpecialStageSelect: set when the Level Select chose Current_special_stage
 Continue_count			ds.b 1
 Super_Sonic_Knux_flag		ds.b 1
 Time_over_flag			ds.b 1
