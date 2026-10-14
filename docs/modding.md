@@ -18,6 +18,7 @@ The `Feature*` switches in `sonic3k.asm` turn this project's gameplay additions 
 | `FeatureStarPostRings` | Restarting from a Star Post starts with no rings. Returning from a Special Stage or bonus stage still keeps them. |
 | `FeatureSmoothSlots` | The Slots bonus stage rotates in 64 steps again. |
 | `FeatureBlueKnuckles` | The Level Select character number stops at 03. The fixes that keep player modes above 3 working stay in. |
+| `FeatureLightDash` | A in the air always does the normal air move; rings never start a Light Dash. |
 
 Two optional alternatives are off by default; 1 enables them:
 
@@ -40,6 +41,12 @@ With `FeatureHomingAttack`, a fresh A/B/C press in the air after a jump or an Ai
 Targets come from `Collision_response_list`, so only objects that could be touched in the last frame count; bosses (`boss_hitcount2` set) are never picked. One dash is allowed per jump (`double_jump_flag` = 2). Breaking a badnik or monitor with it (`Touch_ResetAirDash`) stops Sonic and bounces him up at -$500, and he may dash again. The Insta-Shield object stays in the Shield slot but is never started.
 
 `jumping` = 2 marks a jump the button may not cut short: the Air Roll sets it, so a spring launch keeps its height when the button is released, and so do the dash and the bounce after a hit. A normal jump is still `jumping` = 1.
+
+## Light Dash
+
+With `FeatureLightDash`, a fresh A press in the air (`Player_LightDashStart`, first in every air mode of Sonic, Tails and Knuckles) next to a chain of at least three uncollected rings dashes the player along it, as in Sonic 1 and Sonic 2 Improvements. B and C never start it, and A alone on the ground still jumps. Without a chain the press falls through to the normal air move: the Air Roll, the Jump Dash or Homing Attack, Tails' flight or Knuckles' glide. It is not started from a flight, a glide or a shield move (`double_jump_flag` set), by the sidekick, in Competition mode, the Competition zones or the bonus stages, under reverse gravity, or while control is locked or an object holds the player.
+
+The first ring must lie ahead within 64 pixels; each next one within 72 pixels of the last ring reached. The targets are the level's ring layout itself (`RingLocPtrs`, the same index as `Ring_status_table`), so rings outside the screen count too and the chain is found the same way in every zone. The dash moves at speed $C (6 underwater) in eight substeps a frame with the normal level collision, follows the ground when a link runs along it, collects each ring like `Test_Ring_Collisions` and attacks badniks (`LightDash_Attacking` in `Touch_Enemy`). It ends when the chain does, keeping the last ring-to-ring direction at full speed; or when it is blocked for three frames, after 384 frames, on a hit or a death, or in a new act. The player straightens up from a roll and shows the running frames turned along the dash: the animation borrows `angle` and `ground_vel` for one call (`LightDash_Animate_*`) and gives them back. The state lives in the `LightDash_*` bytes after `Emerald_flicker_flag`, which were unused.
 
 ## Bug fixes
 

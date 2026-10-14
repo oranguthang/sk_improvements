@@ -359,7 +359,36 @@ Save_pointer :=			*		; S3 uses a different address
 				ds.l 1			; pointer to the active save slot in 1 player mode
 			ds.w 1				; unused
 Emerald_flicker_flag		ds.w 1			; controls the emerald flicker in save screen and special stage results.
-			ds.b $44			; unused
+LightDash_RAM =			*			; Light Dash state (FeatureLightDash), in what was unused
+LightDash_active		ds.b 1			; set while the main character dashes from ring to ring
+LightDash_hitframe		ds.b 1			; set on frames the dash moved him: he attacks badniks
+LightDash_initial_search	ds.b 1			; the first ring must be ahead of him
+LightDash_near_ground		ds.b 1			; do not turn back along the floor for a missed ring
+LightDash_have_last_ring	ds.b 1
+LightDash_stall			ds.b 1			; frames without moving
+LightDash_saved_angle		ds.b 1			; the real angle while the pose borrows it
+			ds.b 1				; unused
+LightDash_saved_speed		ds.w 1			; the real ground_vel while the pose borrows it
+LightDash_timer			ds.w 1			; frames left before the dash gives up
+LightDash_act			ds.w 1			; the zone and act it started in
+LightDash_target		ds.w 1			; index of the target ring in the layout and Ring_status_table
+LightDash_exclude_first		ds.w 1			; rings the start preview already counted
+LightDash_exclude_second	ds.w 1
+LightDash_probe_x		ds.w 1			; where the next search starts
+LightDash_probe_y		ds.w 1
+LightDash_full_x		ds.w 1			; this frame's velocity
+LightDash_full_y		ds.w 1
+LightDash_step_x		ds.w 1			; one substep of it
+LightDash_step_y		ds.w 1
+LightDash_last_x		ds.w 1			; the position last frame, to notice a stall
+LightDash_last_y		ds.w 1
+LightDash_last_ring_x		ds.w 1			; the last ring reached
+LightDash_last_ring_y		ds.w 1
+LightDash_exit_x		ds.w 1			; the momentum kept when the chain ends
+LightDash_exit_y		ds.w 1
+LightDash_layout		ds.l 1			; the level's ring layout
+LightDash_RAM_end =		*
+			ds.b $44-(LightDash_RAM_end-LightDash_RAM)	; unused
 Saved_data :=			*		; S3 uses a different address
 				ds.b $54		; saved data from 1 player mode
 Ring_status_table		ds.b $400		; 1 word per ring

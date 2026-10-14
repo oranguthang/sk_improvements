@@ -70,6 +70,8 @@ FeatureFastSoundTest = 1
 ;	| B+A steps the Level Select sound test back by $10 (A alone steps ahead)
 FeatureSpecialStageSelect = 1
 ;	| Left/Right on SPECIAL STAGE in the Level Select choose the stage
+FeatureLightDash = 1
+;	| In the air, A next to a chain of 3+ rings dashes along it (Sonic, Tails and Knuckles)
 
 ; Optional alternatives, off by default.
 FeatureInfiniteLives = 0
@@ -77,7 +79,7 @@ FeatureInfiniteLives = 0
 FeatureCDDrowning = 0
 ;	| If 1, low air beeps every second as in Sonic CD instead of playing the countdown music
 
-	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera|FeatureExtraLives|FeatureInvincibilityFlash|FeatureFastSoundTest|FeatureSpecialStageSelect|FeatureInfiniteLives|FeatureCDDrowning)&~1
+	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera|FeatureExtraLives|FeatureInvincibilityFlash|FeatureFastSoundTest|FeatureSpecialStageSelect|FeatureLightDash|FeatureInfiniteLives|FeatureCDDrowning)&~1
 		error "Feature options must be 0 or 1"
 	endif
 
@@ -16014,6 +16016,7 @@ Write_SaveGame:
 		include "Improvements/Cheats.asm"
 		include "Improvements/DebugHud.asm"
 		include "Improvements/QoL.asm"
+		include "Improvements/LightDash.asm"
 
 ; ---------------------------------------------------------------------------
 SaveGame_NextLevel:
@@ -21112,6 +21115,10 @@ Touch_ResetAirDash:
 ; ---------------------------------------------------------------------------
 
 Touch_Enemy:
+	if FeatureLightDash
+		jsr	(LightDash_Attacking).l			; Is player Light Dashing?
+		bne.s	.checkhurtenemy				; If so, branch
+	endif
 		btst	#Status_Invincible,status_secondary(a0)	; Is player invincible?
 		bne.s	.checkhurtenemy				; If so, branch
 		cmpi.b	#9,anim(a0)				; Is player in their spin dash animation?
@@ -21313,6 +21320,9 @@ HurtCharacter:
 ; ---------------------------------------------------------------------------
 
 .hurt:
+	if FeatureLightDash
+		jsr	(LightDash_PlayerHit).l		; a hit ends the Light Dash
+	endif
 		move.w	(Ring_count).w,d0
 		cmpa.w	#Player_1,a0
 		beq.s	loc_102A8
@@ -21386,6 +21396,9 @@ loc_10364:
 Kill_Character:
 		jsr	(Cheat_GodMode).l		; GOD MODE: no deaths
 		bne.w	Cheat_GodRescue			; a pit bounces the player back up instead
+	if FeatureLightDash
+		jsr	(LightDash_PlayerHit).l		; a death ends the Light Dash
+	endif
 		tst.w	(Debug_placement_mode).w
 		bne.s	loc_103B6
 		moveq	#signextendB(sfx_Death),d0
@@ -22229,6 +22242,10 @@ loc_10BFC:
 ; ---------------------------------------------------------------------------
 
 loc_10C0C:
+	if FeatureLightDash
+		jsr	(Player_LightDashFrame).l	; dashing along a ring chain replaces the mode
+		bne.s	loc_10C26
+	endif
 		movem.l	a4-a6,-(sp)
 		moveq	#0,d0
 		move.b	status(a0),d0
@@ -22260,7 +22277,11 @@ loc_10C36:
 loc_10C62:
 		btst	#1,object_control(a0)
 		bne.s	loc_10C7E
+	if FeatureLightDash
+		jsr	(LightDash_Animate_Sonic).l	; the running frames turned along a Light Dash
+	else
 		bsr.w	Animate_Sonic
+	endif
 		tst.b	(Reverse_gravity_flag).w
 		beq.s	loc_10C7A
 		eori.b	#2,render_flags(a0)
@@ -22602,6 +22623,9 @@ Call_Player_AnglePos:
 ; Called if Sonic is airborne, but not in a ball (thus, probably not jumping)
 
 Sonic_MdAir:
+	if FeatureLightDash
+		jsr	(Player_LightDashStart).l	; A next to a ring chain: Light Dash
+	endif
 		bsr.w	AirRoll
 		bsr.w	Sonic_JumpHeight
 		bsr.w	Sonic_ChgJumpDir
@@ -22660,6 +22684,9 @@ locret_11034:
 ;        Why they gave it a separate copy of the code, I don't know.
 
 Sonic_MdJump:
+	if FeatureLightDash
+		jsr	(Player_LightDashStart).l	; A next to a ring chain: Light Dash
+	endif
 		bsr.w	AirRoll
 		bsr.w	Sonic_JumpHeight
 		bsr.w	Sonic_ChgJumpDir
@@ -26842,6 +26869,10 @@ loc_1384A:
 ; ---------------------------------------------------------------------------
 
 loc_13872:
+	if FeatureLightDash
+		jsr	(Player_LightDashFrame).l	; dashing along a ring chain replaces the mode
+		bne.s	loc_1388C
+	endif
 		movem.l	a4-a6,-(sp)
 		moveq	#0,d0
 		move.b	status(a0),d0
@@ -26873,7 +26904,11 @@ loc_1389C:
 loc_138C8:
 		btst	#1,object_control(a0)
 		bne.s	loc_138E4
+	if FeatureLightDash
+		jsr	(LightDash_Animate_Tails).l	; the running frames turned along a Light Dash
+	else
 		bsr.w	Animate_Tails
+	endif
 		tst.b	(Reverse_gravity_flag).w
 		beq.s	loc_138E0
 		eori.b	#2,render_flags(a0)
@@ -28185,6 +28220,9 @@ locret_147B6:
 ; ---------------------------------------------------------------------------
 
 Tails_Stand_Freespace:
+	if FeatureLightDash
+		jsr	(Player_LightDashStart).l	; A next to a ring chain: Light Dash
+	endif
 		tst.b	double_jump_flag(a0)
 		bne.s	Tails_FlyingSwimming
 		bsr.w	AirRoll_Tails
@@ -28398,6 +28436,9 @@ locret_149A0:
 ; ---------------------------------------------------------------------------
 
 Tails_Spin_Freespace:
+	if FeatureLightDash
+		jsr	(Player_LightDashStart).l	; A next to a ring chain: Light Dash
+	endif
 		bsr.w	AirRoll_Tails
 		tst.b	(Flying_carrying_Sonic_flag).w
 		beq.s	loc_149BA
@@ -31093,6 +31134,10 @@ loc_165AE:
 ; ---------------------------------------------------------------------------
 
 loc_165BE:
+	if FeatureLightDash
+		jsr	(Player_LightDashFrame).l	; dashing along a ring chain replaces the mode
+		bne.s	loc_165D8
+	endif
 		movem.l	a4-a6,-(sp)
 		moveq	#0,d0
 		move.b	status(a0),d0
@@ -31124,7 +31169,11 @@ loc_165E8:
 loc_16614:
 		btst	#1,object_control(a0)
 		bne.s	loc_16630
+	if FeatureLightDash
+		jsr	(LightDash_Animate_Knuckles).l	; the running frames turned along a Light Dash
+	else
 		bsr.w	Animate_Knuckles
+	endif
 		tst.b	(Reverse_gravity_flag).w
 		beq.s	loc_1662C
 		eori.b	#2,render_flags(a0)
@@ -31333,6 +31382,9 @@ locret_1684A:
 ; ---------------------------------------------------------------------------
 
 Knux_Stand_Freespace:
+	if FeatureLightDash
+		jsr	(Player_LightDashStart).l	; A next to a ring chain: Light Dash
+	endif
 		tst.b	double_jump_flag(a0)
 		bne.s	Knux_Glide_Freespace
 		bsr.w	AirRoll
@@ -32434,6 +32486,9 @@ locret_17116:
 ; ---------------------------------------------------------------------------
 
 Knux_Spin_Freespace:
+	if FeatureLightDash
+		jsr	(Player_LightDashStart).l	; A next to a ring chain: Light Dash
+	endif
 		bsr.w	AirRoll
 		bsr.w	Knux_JumpHeight
 		bsr.w	Knux_ChgJumpDir
@@ -38896,6 +38951,10 @@ locret_1BC5E:
 
 
 Get_LevelSizeStart:
+	if FeatureLightDash
+		clr.b	(LightDash_active).w
+		clr.b	(LightDash_hitframe).w
+	endif
 		clr.b	(Deform_lock).w
 		clr.b	(_unkEE08).w
 		clr.b	(Scroll_lock).w
