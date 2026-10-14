@@ -22544,11 +22544,15 @@ AirRoll_Check:
 		add.w	d1,y_pos(a0)		; keep the feet where they were
 
 .was_rolling:
-		move.b	#1,jumping(a0)		; set jump state for next press
+		move.b	#2,jumping(a0)		; air move allowed, and a spring launch is not cut short
 		addq.l	#4,sp			; skip rest of caller this frame
+		rts
+; ---------------------------------------------------------------------------
 
 .enable_ability:
-		move.b	#1,jumping(a0)		; enable insta-shield/flight/glide on next JumpHeight call
+		tst.b	jumping(a0)		; already jumping?
+		bne.s	.return			; then keep its kind of jump
+		move.b	#1,jumping(a0)		; enable the air move on the next JumpHeight call
 
 .return:
 		rts
@@ -23547,6 +23551,10 @@ Sonic_JumpHeight:
 loc_118D2:
 		cmp.w	y_vel(a0),d1		; is y speed greater than 4? (2 if underwater)
 		ble.w	Sonic_ShieldMoves	; if not, branch
+	if FeatureAirRoll
+		cmpi.b	#2,jumping(a0)		; curled up by an Air Roll, not by a jump?
+		beq.w	Sonic_ShieldMoves	; then the button never cuts the speed short
+	endif
 	if FeatureAirRoll
 		move.b	(Ctrl_1_pressed_logical).w,d0
 		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0
@@ -28825,6 +28833,10 @@ loc_150F0:
 		cmp.w	y_vel(a0),d1
 		ble.s	Tails_Test_For_Flight
 	if FeatureAirRoll
+		cmpi.b	#2,jumping(a0)		; curled up by an Air Roll, not by a jump?
+		beq.w	Tails_Test_For_Flight	; then the button never cuts the speed short
+	endif
+	if FeatureAirRoll
 		move.b	(Ctrl_2_pressed_logical).w,d0
 		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0
 		bne.w	Tails_Test_For_Flight	; freshly pressed: check ability without cutting height
@@ -32777,6 +32789,10 @@ loc_17800:
 		cmp.w	y_vel(a0),d1
 		ble.w	Knux_Test_For_Glide
 	if FeatureAirRoll
+		cmpi.b	#2,jumping(a0)		; curled up by an Air Roll, not by a jump?
+		beq.w	Knux_Test_For_Glide	; then the button never cuts the speed short
+	endif
+	if FeatureAirRoll
 		move.b	(Ctrl_1_pressed_logical).w,d0
 		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0
 		bne.w	Knux_Test_For_Glide	; freshly pressed: check ability without cutting height
@@ -32917,7 +32933,7 @@ loc_17952:
 		bset	#Status_Push,(Gliding_collision_flags).w
 
 loc_1799C:
-		bsr.w	CheckRightWallDist
+		jsr	(CheckRightWallDist).l
 		tst.w	d1
 		bpl.s	loc_179B4
 		add.w	d1,x_pos(a0)
