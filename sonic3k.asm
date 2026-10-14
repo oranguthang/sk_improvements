@@ -60,8 +60,10 @@ FeatureBlueKnuckles = 1
 FeatureHomingAttack = 1
 ;	| A/B/C in the air: Sonic's Homing Attack, or Jump Dash without a target,
 ;	| instead of the Insta-Shield; elemental shields keep their own moves
+FeatureExtendedCamera = 1
+;	| Let the camera look ahead of the player at speed and while charging a Spin Dash
 
-	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack)&~1
+	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera)&~1
 		error "Feature options must be 0 or 1"
 	endif
 
@@ -22120,6 +22122,7 @@ loc_10C26:
 		and.w	d0,y_pos(a0)			; perform wrapping of Sonic's y position
 
 loc_10C36:
+		bsr.w	Player_PanCamera		; extended camera
 		bsr.s	Sonic_Display
 		bsr.w	SonicKnux_SuperHyper
 		bsr.w	Sonic_RecordPos
@@ -22619,6 +22622,88 @@ AirRoll_Tails:
 .return:
 		rts
 ; End of function AirRoll_Tails
+
+; ---------------------------------------------------------------------------
+; Extended camera, as in Sonic 1 and Sonic 2 Improvements (Sonic CD's camera,
+; ported by Naoto and Selbi): at top speed, and while charging a Spin Dash,
+; Camera_pan_X moves 2 pixels a frame up to 64 pixels from the centre, so the
+; player is shown behind the centre and more of the way ahead is visible. It
+; holds until the speed drops below $4B0, then eases back, as it also does
+; while an object or cutscene controls the player (object_control bit 7).
+; MoveCameraX keeps the player near Camera_pan_X. Only the player the
+; 1-player camera follows changes it.
+; ---------------------------------------------------------------------------
+
+Player_PanCamera:
+	if FeatureExtendedCamera=0
+		rts					; keep the original camera focus
+	endif
+		cmpa.w	#Player_1,a0			; is this the player the camera follows?
+		bne.s	.return
+		tst.w	(Competition_mode).w		; competition mode has its own cameras
+		bne.s	.return
+		move.w	(Camera_pan_X).w,d1
+		moveq	#0,d0				; no speed: ease back to the centre
+		tst.b	object_control(a0)		; is an object or cutscene moving the player?
+		bmi.s	.speedReady			; if so, branch
+		tst.b	spin_dash_flag(a0)		; charging a Spin Dash?
+		beq.s	.readSpeed
+		btst	#Status_Facing,status(a0)	; look the way it will launch
+		bne.s	.panLeft
+		bra.s	.panRight
+; ---------------------------------------------------------------------------
+
+.readSpeed:
+		; The horizontal velocity on the ground too: ground_vel points along the
+		; surface, so it has the opposite sign on a ceiling or in a loop
+		move.w	x_vel(a0),d0
+
+.speedReady:
+		move.w	d0,d2				; keep the direction
+		bpl.s	.absoluteSpeed
+		neg.w	d0
+
+.absoluteSpeed:
+		cmpi.w	#$600,d0			; at normal top speed?
+		blo.s	.slow
+		tst.w	d2
+		bmi.s	.panLeft
+
+.panRight:
+		subq.w	#2,d1				; show the player left of centre
+		cmpi.w	#320/2-64,d1
+		bge.s	.store
+		move.w	#320/2-64,d1
+		bra.s	.store
+; ---------------------------------------------------------------------------
+
+.panLeft:
+		addq.w	#2,d1				; show the player right of centre
+		cmpi.w	#320/2+64,d1
+		ble.s	.store
+		move.w	#320/2+64,d1
+		bra.s	.store
+; ---------------------------------------------------------------------------
+
+.slow:
+		cmpi.w	#$4B0,d0			; hold the pan until the speed drops
+		bhs.s	.return
+		cmpi.w	#320/2,d1
+		beq.s	.return
+		blt.s	.centreFromLeft
+		subq.w	#2,d1
+		bra.s	.store
+; ---------------------------------------------------------------------------
+
+.centreFromLeft:
+		addq.w	#2,d1
+
+.store:
+		move.w	d1,(Camera_pan_X).w
+
+.return:
+		rts
+; End of function Player_PanCamera
 
 ; ---------------------------------------------------------------------------
 ; Subroutine to make Sonic walk/run
@@ -26642,6 +26727,7 @@ loc_1388C:
 		and.w	d0,y_pos(a0)
 
 loc_1389C:
+		bsr.w	Player_PanCamera		; extended camera
 		bsr.s	Tails_Display
 		bsr.w	Tails_Super
 		bsr.w	Sonic_RecordPos
@@ -30890,6 +30976,7 @@ loc_165D8:
 		and.w	d0,y_pos(a0)
 
 loc_165E8:
+		bsr.w	Player_PanCamera		; extended camera
 		bsr.s	Knuckles_Display
 		bsr.w	SonicKnux_SuperHyper
 		bsr.w	Sonic_RecordPos
@@ -32461,7 +32548,7 @@ loc_173B0:
 		move.b	angle(a0),d0
 		add.b	d1,d0
 		move.w	d0,-(sp)
-		bsr.w	sub_F61C
+		jsr	(sub_F61C).l
 		move.w	(sp)+,d0
 		tst.w	d1
 		bpl.s	locret_17426
@@ -38660,6 +38747,7 @@ Get_LevelSizeStart:
 		move.w	#$60,(Distance_from_top_P2).w
 		move.w	#-1,(Screen_X_wrap_value).w
 		move.w	#-1,(Screen_Y_wrap_value).w
+		move.w	#320/2,(Camera_pan_X).w		; extended camera starts centred
 		bra.w	loc_1BE46
 ; ---------------------------------------------------------------------------
 LevelSizes:	;     xstart    xend  ystart    yend	; Level
@@ -38959,7 +39047,21 @@ loc_1C0D2:
 
 loc_1C0D6:
 		sub.w	(a1),d0
+	if FeatureExtendedCamera
+		cmpa.w	#Player_1,a0			; a forced scroll position (Scroll_force_positions) stays centred
+		bne.s	.centred
+		sub.w	(Camera_pan_X).w,d0		; keep the player Camera_pan_X-16 to Camera_pan_X pixels from the left
+		addi.w	#$10,d0
+		bra.s	.panned
+; ---------------------------------------------------------------------------
+
+.centred:
 		subi.w	#$90,d0
+
+.panned:
+	else
+		subi.w	#$90,d0
+	endif
 		blt.s	loc_1C0E8
 		subi.w	#$10,d0
 		bge.s	loc_1C0FC

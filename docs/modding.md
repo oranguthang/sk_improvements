@@ -9,6 +9,7 @@ The `Feature*` switches in `sonic3k.asm` turn this project's gameplay additions 
 | `FeatureRollJumpSteering` | A jump from a roll locks midair steering again. |
 | `FeatureAirRoll` | Pressing A/B/C in the air no longer curls the player into a ball, and a fresh press while rising fast no longer reaches the shield move, flight or glide. |
 | `FeatureHomingAttack` | Sonic's A/B/C in the air does the Insta-Shield again, and invincibility blocks his air move as in the original game. |
+| `FeatureExtendedCamera` | The camera keeps the original fixed focus. |
 | `FeatureInstantTally` | Holding A/B/C no longer finishes the act bonus count at once. |
 | `FeatureStarPostRings` | Restarting from a Star Post starts with no rings. Returning from a Special Stage or bonus stage still keeps them. |
 | `FeatureSmoothSlots` | The Slots bonus stage rotates in 64 steps again. |
@@ -51,3 +52,9 @@ Inspired by [Work with Water in S3K](https://info.sonicretro.org/SCHG_How-to:Wor
 - `WaterFlag_NoKnucklesAtActStart`: together with `WaterFlag_NoKnuckles`, only when the act is started directly rather than continued from the act before (Angel Island 2)
 
 To give another act water, add a `waterlevel` line for it and set its starting height in `Levels/Misc/StartingWaterHeights.bin` (two words per zone, acts 1 and 2). Moving water also needs a routine in `DynamicWaterHeight_Index`. Knuckles' colors are taken from the table entry, and an entry of 0 keeps the palette's own colors, so water in Mushroom Hill or later zones does not read past the end of `Pal_WaterKnux`. The original acts behave as before.
+
+## Extended camera
+
+With `FeatureExtendedCamera`, `Player_PanCamera` moves `Camera_pan_X` 2 pixels a frame up to 64 pixels from the centre (160) while the player the 1-player camera follows moves at top speed ($600) or charges a Spin Dash, so more of the way ahead is visible, as in Sonic 1 and Sonic 2 Improvements. It holds until the speed drops below $4B0, then eases back, as it also does while an object or cutscene controls the player (`object_control` bit 7). `MoveCameraX` keeps the player `Camera_pan_X`-16 to `Camera_pan_X` pixels from the left edge; a forced scroll position (`Scroll_force_positions`) stays centred. Competition mode does not use it.
+
+The direction comes from `x_vel` on the ground as well as in the air: `ground_vel` points along the surface and has the opposite sign on a ceiling or in a loop, which panned the old work-in-progress port the wrong way. Level events that read `Camera_X_pos` see the panned camera, so they can start up to 64 pixels earlier or later than in the original game.
