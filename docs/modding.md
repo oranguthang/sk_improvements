@@ -10,12 +10,23 @@ The `Feature*` switches in `sonic3k.asm` turn this project's gameplay additions 
 | `FeatureAirRoll` | Pressing A/B/C in the air no longer curls the player into a ball, and a fresh press while rising fast no longer reaches the shield move, flight or glide. |
 | `FeatureHomingAttack` | Sonic's A/B/C in the air does the Insta-Shield again, and invincibility blocks his air move as in the original game. |
 | `FeatureExtendedCamera` | The camera keeps the original fixed focus. |
+| `FeatureExtraLives` | Rings award lives only at 100 and 200. |
+| `FeatureInvincibilityFlash` | The invincibility stars stay steady until they vanish. |
+| `FeatureFastSoundTest` | B+A in the Level Select sound test steps ahead by $10 like A alone. |
+| `FeatureSpecialStageSelect` | Left/Right on SPECIAL STAGE switch columns again, and a Special Stage started from the Level Select is the game's own choice. |
 | `FeatureInstantTally` | Holding A/B/C no longer finishes the act bonus count at once. |
 | `FeatureStarPostRings` | Restarting from a Star Post starts with no rings. Returning from a Special Stage or bonus stage still keeps them. |
 | `FeatureSmoothSlots` | The Slots bonus stage rotates in 64 steps again. |
 | `FeatureBlueKnuckles` | The Level Select character number stops at 03. The fixes that keep player modes above 3 working stay in. |
 
-S1's `FeatureLamppostRings` is `FeatureStarPostRings` here; the other names match Sonic 1 Improvements.
+Two optional alternatives are off by default; 1 enables them:
+
+| Option | When 1 |
+|---|---|
+| `FeatureInfiniteLives` | The lives counter is hidden and dying never ends the game; it restarts the act, a Time Over too. Rings, the score and Special Stage rings no longer award lives or continues, and 1-ups give 10 rings. |
+| `FeatureCDDrowning` | As in Sonic CD, the music keeps playing below 12 seconds of air and the air warning sounds every second; the countdown numbers still appear. Ending invincibility is no longer held back while the air is low, and breathing again does not restart the music. |
+
+S1's `FeatureLamppostRings` is `FeatureStarPostRings` here; the other names match Sonic 1 Improvements. S1's `FeatureCentiseconds` is not available: levels have no free video memory for two more clock digits.
 
 ## Air moves
 
@@ -58,3 +69,9 @@ To give another act water, add a `waterlevel` line for it and set its starting h
 With `FeatureExtendedCamera`, `Player_PanCamera` moves `Camera_pan_X` 2 pixels a frame up to 64 pixels from the centre (160) while the player the 1-player camera follows moves at top speed ($600) or charges a Spin Dash, so more of the way ahead is visible, as in Sonic 1 and Sonic 2 Improvements. It holds until the speed drops below $4B0, then eases back, as it also does while an object or cutscene controls the player (`object_control` bit 7). `MoveCameraX` keeps the player `Camera_pan_X`-16 to `Camera_pan_X` pixels from the left edge; a forced scroll position (`Scroll_force_positions`) stays centred. Competition mode does not use it.
 
 The direction comes from `x_vel` on the ground as well as in the air: `ground_vel` points along the surface and has the opposite sign on a ceiling or in a loop, which panned the old work-in-progress port the wrong way. Level events that read `Camera_X_pos` see the panned camera, so they can start up to 64 pixels earlier or later than in the original game.
+
+## Quality-of-life details
+
+With `FeatureExtraLives`, bits 1-7 of `Extra_life_flags` (and `Extra_life_flags_P2`) count the hundreds of rings already rewarded; bit 0 stays the Slots stage's continue. Losing the rings clears the flags, so the next 100 give another life. `ExtraLives_Check` in `Improvements/QoL.asm` serves collected rings, 10-ring monitors and Competition player 2.
+
+With `FeatureSpecialStageSelect`, the stage number after "SPECIAL STG" is `Current_special_stage`+1, written into the Level Select plane map in `RAM_start`. Starting a Special Stage from the Level Select sets `Special_stage_select`, the byte after `Current_special_stage`, so the stage set-up plays that stage instead of searching for one without an emerald; winning a stage whose emerald was already earned does not count it twice.
