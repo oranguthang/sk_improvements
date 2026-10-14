@@ -82,7 +82,6 @@
     {
       packages = forAllSystems (system: {
         s3k-rom = buildROM system "buildS3Complete.lua" "sonic3k";
-        sk-rom = buildROM system "buildSK.lua" "skbuilt";
         s3-rom = buildROM system "buildS3.lua" "s3built";
         default = self.packages.${system}.s3k-rom;
       });

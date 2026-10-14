@@ -2,7 +2,7 @@
 
 ## Feature options
 
-The `Feature*` switches in `sonic3k.asm` turn this project's gameplay additions on (1, the default) or off (0). Off restores the original Sonic 3 & Knuckles behaviour for that feature only. The code stays assembled but is never entered, so a feature can be switched off without moving data or touching other features. Both builds, `buildSK` and `buildS3Complete`, read the same switches.
+The `Feature*` switches in `sonic3k.asm` turn this project's gameplay additions on (1, the default) or off (0). Off restores the original Sonic 3 & Knuckles behaviour for that feature only. The code stays assembled but is never entered, so a feature can be switched off without moving data or touching other features.
 
 | Option | When 0 |
 |---|---|
@@ -17,7 +17,7 @@ S1's `FeatureLamppostRings` is `FeatureStarPostRings` here; the other names matc
 
 ## Bug fixes
 
-`FixBugs` (default 1) switches the disassembly's own bug fixes and the ones this project ported from Sonic Retro guides. With 0, both builds assemble the original code again:
+`FixBugs` (default 1) switches the disassembly's own bug fixes and the ones this project ported from Sonic Retro guides. With 0, the original code is assembled again:
 
 - [Fix Scattered Rings Underwater Physics](https://info.sonicretro.org/SCHG_How-to:Fix_Scattered_Rings_Underwater_Physics): rings scattered under water start at half speed and fall with gravity $A instead of $18. `Bouncing_Ring_Gravity` applies it to normal and reverse gravity rings.
 - [Fix Ring Timers](https://info.sonicretro.org/SCHG_How-to:Fix_Ring_Timers): each scattered ring counts down its own lifetime in `height_pixels`, so rings lost later do not keep older ones alive, and they flash during their last 80 frames (`Bouncing_Ring_TimerAndDraw`). The global `Ring_spill_anim_counter` still drives the spin animation.

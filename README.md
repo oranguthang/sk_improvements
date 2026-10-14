@@ -10,7 +10,7 @@ See also:
 
 ## Build options
 
-Build with `buildSK.bat` (Sonic & Knuckles, `skbuilt.bin`) or `buildS3Complete.bat` (Sonic 3 & Knuckles, `sonic3k.bin`). The switches `FixBugs` and `Feature*` near the top of `sonic3k.asm` apply to both. Every `Feature*` switch is 1 by default; 0 restores the original behaviour of that addition. See the [modding reference](docs/modding.md) for the feature options, the ported bug fixes and the water settings table. Keep both builds and both values of every switch assemblable when changing shared routines.
+Build the game with `buildS3Complete.bat` (or `lua buildS3Complete.lua`), which writes `sonic3k.bin`: Sonic 3 & Knuckles with the Sonic 3 data built in. The Sonic & Knuckles-only build was removed, and the standalone Sonic 3 build (`buildS3`, `s3.asm`) is kept as upstream left it. The switches `FixBugs` and `Feature*` are near the top of `sonic3k.asm`. Every `Feature*` switch is 1 by default; 0 restores the original behaviour of that addition. See the [modding reference](docs/modding.md) for the feature options, the ported bug fixes and the water settings table. Keep both values of every switch assemblable when changing shared routines.
 
 ## Built-in fixes
 
