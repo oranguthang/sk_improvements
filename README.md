@@ -12,6 +12,10 @@ See also:
 
 Build the game with `buildS3Complete.bat` (or `lua buildS3Complete.lua`), which writes `sonic3k.bin`: Sonic 3 & Knuckles with the Sonic 3 data built in. The Sonic & Knuckles-only build was removed, and the standalone Sonic 3 build (`buildS3`, `s3.asm`) is kept as upstream left it. The switches `FixBugs` and `Feature*` are near the top of `sonic3k.asm`. Every `Feature*` switch is 1 by default; 0 restores the original behaviour of that addition. See the [modding reference](docs/modding.md) for the feature options, the ported bug fixes and the water settings table. Keep both values of every switch assemblable when changing shared routines.
 
+## Error diagnostics
+
+Every build includes Vladikcomper's MD Debugger: a crash shows the exception screen with the faulting label, registers, stack and a symbolic backtrace instead of restarting the game. `buildS3Complete.lua --no-symbols` leaves out the symbol names. See the [debugger guide](_debug/md-debugger/README.md) for controls, the layout rule and tool requirements.
+
 ## Built-in fixes
 
 The disassembly's built-in `FixBugs` flag is enabled, applying approximately 59 bug fixes already present in the codebase, including skid animation register corruption for all characters, sprite height initialization for various objects, boss attack positioning, Super Sonic palette fade-in, and many other minor bugs.

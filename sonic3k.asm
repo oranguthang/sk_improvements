@@ -31,6 +31,9 @@ SonicDriverVer = 4 ; Tell SMPS2ASM that we are targeting Sonic & Knuckles' sound
 
 ; 'Sonic3_Complete' is set via build scripts to 0 or 1.
 ; If 1, includes all required Sonic 3 data in order to assemble a smaller version of S3K (with all redundancies removed)
+	if Sonic3_Complete=0
+		fatal "The Sonic & Knuckles-only build was removed: build sonic3k.bin with buildS3Complete"
+	endif
 
 strip_padding = 0|Sonic3_Complete
 ; If 1, strips all unnecessary padding
@@ -59,6 +62,17 @@ FeatureBlueKnuckles = 1
 		error "Feature options must be 0 or 1"
 	endif
 
+	ifndef MDDebugger
+MDDebugger = 1
+	endif
+;	| If 1, crashes show the MD Debugger exception screen (vladikcomper) instead of
+;	| restarting the game. The build scripts place the ConvSym symbol table right
+;	| after the debugger blob (see ErrorHandler_End), so nothing may follow it.
+
+	if MDDebugger
+		include "_debug/md-debugger/Debugger.asm"
+	endif
+
 Size_of_Snd_driver_guess = $E00
 Size_of_Snd_driver2_guess = $690
 ; Approximate size of compressed sound driver. Change when appropriate
@@ -72,13 +86,13 @@ StartOfROM:
 		fatal "StartOfROM was $\{*} but it should be 0"
 	endif
 
-Vectors:	dc.l	0,	EntryPoint,	ErrorTrap,	ErrorTrap		; 0
-		dc.l	ErrorTrap,	ErrorTrap,	ErrorTrap,	ErrorTrap	; 4
-		dc.l	ErrorTrap,	ErrorTrap,	ErrorTrap,	ErrorTrap	; 8
-		dc.l	ErrorTrap,	ErrorTrap,	ErrorTrap,	ErrorTrap	; 12
-		dc.l	ErrorTrap,	ErrorTrap,	ErrorTrap,	ErrorTrap	; 16
-		dc.l	ErrorTrap,	ErrorTrap,	ErrorTrap,	ErrorTrap	; 20
-		dc.l	ErrorTrap,	ErrorTrap,	ErrorTrap,	ErrorTrap	; 24
+Vectors:	dc.l	0,	EntryPoint,	BusError,	AddressError		; 0
+		dc.l	IllegalInstr,	ZeroDivide,	ChkInstr,	TrapvInstr	; 4
+		dc.l	PrivilegeViol,	Trace,	Line1010Emu,	Line1111Emu	; 8
+		dc.l	ErrorExcept,	ErrorExcept,	ErrorExcept,	ErrorExcept	; 12 (reserved)
+		dc.l	ErrorExcept,	ErrorExcept,	ErrorExcept,	ErrorExcept	; 16 (reserved)
+		dc.l	ErrorExcept,	ErrorExcept,	ErrorExcept,	ErrorExcept	; 20 (reserved)
+		dc.l	ErrorExcept,	ErrorTrap,	ErrorTrap,	ErrorTrap	; 24 (spurious, IRQ 1-3)
 		dc.l	H_int_jump,	ErrorTrap,	V_int_jump,	ErrorTrap	; 28
 		dc.l	ErrorTrap,	ErrorTrap,	ErrorTrap,	ErrorTrap	; 32
 		dc.l	ErrorTrap,	ErrorTrap,	ErrorTrap,	ErrorTrap	; 36
@@ -126,11 +140,28 @@ KiS2ROMEndLoc2:		tribyte $33FFFF
 Country_Code:	dc.b "JUE             "
 ; ---------------------------------------------------------------------------
 ; Unlike the games before this doesn't crash/freeze the 68000, instead it falls through into the EntryPoint which causes the game to soft-restart.
+; With MDDebugger, unexpected traps and interrupts show the exception screen instead.
 
 ErrorTrap:
+	if MDDebugger
+		jmp	(ErrorExcept).l		; same size as the three nops, so the checksum start stays put
+	else
 		nop
 		nop
 		nop
+
+BusError =	ErrorTrap
+AddressError =	ErrorTrap
+IllegalInstr =	ErrorTrap
+ZeroDivide =	ErrorTrap
+ChkInstr =	ErrorTrap
+TrapvInstr =	ErrorTrap
+PrivilegeViol =	ErrorTrap
+Trace =		ErrorTrap
+Line1010Emu =	ErrorTrap
+Line1111Emu =	ErrorTrap
+ErrorExcept =	ErrorTrap
+	endif
 ; ---------------------------------------------------------------------------
 
 EntryPoint:
@@ -204171,7 +204202,11 @@ EndOfROM:
 		include "Lockon S3/LockOn Pointers.asm"
 	else
 		include "Lockon S3/LockOn Data.asm"
+		include "_debug/Debugger blob.asm"
 EndOfROM:
+		if ErrorHandler_End<>EndOfROM
+			error "Data was placed after the MD Debugger blob; its symbol table would be unreachable."
+		endif
 	endif
 
 		END
