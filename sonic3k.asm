@@ -15832,6 +15832,7 @@ Write_SaveGame:
 		include "Improvements/QoL.asm"
 		include "Improvements/Decompression.asm"
 		include "Improvements/Math.asm"
+		include "Improvements/RingLoss.asm"
 		include "Improvements/LightDash.asm"
 		include "Improvements/PeelOut.asm"
 
@@ -36174,7 +36175,11 @@ Bouncing_Ring_Reverse_Gravity_Index:
 ; ---------------------------------------------------------------------------
 
 loc_1A68C:
-		movea.l	a0,a1
+		; Faster version, as in s1_improvements (after "Speed Up Ring Loss
+		; Process"): the speeds come from RingLoss_Velocities, which holds
+		; what GetSineCosine and the shifts below used to give, and the free
+		; slots are found in one pass over the ones AllocateObjectAfterCurrent
+		; searched for every ring.
 		moveq	#0,d5
 		move.w	(Ring_count).w,d5
 		tst.b	$3F(a0)
@@ -36189,13 +36194,42 @@ loc_1A69E:
 
 loc_1A6A6:
 		subq.w	#1,d5
-		move.w	#$288,d4
+		lea	(RingLoss_Velocities).l,a2
+	if FixBugs
+		; Scatter rings at half speed underwater
+		; https://info.sonicretro.org/SCHG_How-to:Fix_Scattered_Rings_Underwater_Physics
+		tst.b	(Water_flag).w		; Does the level have water?
+		beq.s	.skiphalvingvel		; If not, branch and skip underwater checks
+		move.w	(Water_level).w,d6	; Move water level to d6
+		cmp.w	y_pos(a0),d6		; Is the ring object underneath the water level?
+		bgt.s	.skiphalvingvel		; If not, branch and skip underwater commands
+		lea	(RingLoss_Velocities_Water).l,a2	; the same speeds, halved
+.skiphalvingvel:
+	endif
+		; The slots AllocateObjectAfterCurrent would search after a0: d6 is its
+		; loop counter plus one, so the first search below starts as it did.
+		; Its own look-up table is read, so the first dynamic slot still gets
+		; the byte after the table, as there.
+		move.w	#Dynamic_object_RAM_end,d6
+		sub.w	a0,d6
+		lsr.w	#6,d6
+		lea	(AllocateObjectAfterCurrent.lookup).l,a1
+		move.b	(a1,d6.w),d6
+		movea.l	a0,a1			; the first ring is this object itself
+		ext.w	d6
+		addq.w	#1,d6
 		bra.s	loc_1A6B6
 ; ---------------------------------------------------------------------------
 
 loc_1A6AE:
-		bsr.w	AllocateObjectAfterCurrent
-		bne.w	loc_1A738
+		subq.w	#1,d6			; the slots after the last ring
+		bmi.s	loc_1A738
+
+.findSlot:
+		lea	next_object(a1),a1
+		tst.l	(a1)
+		dbeq	d6,.findSlot
+		bne.s	loc_1A738
 
 loc_1A6B6:
 		move.l	#Obj_Bouncing_Ring,(a1)
@@ -36217,39 +36251,7 @@ loc_1A6B6:
 	if FixBugs=0
 		move.b	#-1,(Ring_spill_anim_counter).w
 	endif
-		tst.w	d4
-		bmi.s	loc_1A728
-		move.w	d4,d0
-		jsr	(GetSineCosine).l
-		move.w	d4,d2
-		lsr.w	#8,d2
-	if FixBugs
-		; Scatter rings at half speed underwater
-		; https://info.sonicretro.org/SCHG_How-to:Fix_Scattered_Rings_Underwater_Physics
-		tst.b	(Water_flag).w		; Does the level have water?
-		beq.s	.skiphalvingvel		; If not, branch and skip underwater checks
-		move.w	(Water_level).w,d6	; Move water level to d6
-		cmp.w	y_pos(a0),d6		; Is the ring object underneath the water level?
-		bgt.s	.skiphalvingvel		; If not, branch and skip underwater commands
-		asr.w	d0			; Half d0. Makes the ring's x_vel bounce to the left/right slower
-		asr.w	d1			; Half d1. Makes the ring's y_vel bounce up/down slower
-.skiphalvingvel:
-	endif
-		asl.w	d2,d0
-		asl.w	d2,d1
-		move.w	d0,d2
-		move.w	d1,d3
-		addi.b	#$10,d4
-		bcc.s	loc_1A728
-		subi.w	#$80,d4
-		bcc.s	loc_1A728
-		move.w	#$288,d4
-
-loc_1A728:
-		move.w	d2,x_vel(a1)
-		move.w	d3,y_vel(a1)
-		neg.w	d2
-		neg.w	d4
+		move.l	(a2)+,x_vel(a1)		; x_vel and y_vel
 		dbf	d5,loc_1A6AE
 
 loc_1A738:
