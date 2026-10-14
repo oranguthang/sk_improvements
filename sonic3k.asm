@@ -36,7 +36,28 @@ strip_padding = 0|Sonic3_Complete
 ; If 1, strips all unnecessary padding
 
 FixBugs = 1
-; If 1, fixes multiple bugs within the game
+; If 1, fixes multiple bugs within the game, including the ones fixed by this
+; project's Sonic Retro bug-fix guides
+
+; Gameplay features added by this project. Each is 1 by default; 0 restores
+; the original Sonic 3 & Knuckles behaviour. Disabled code stays assembled but
+; is never entered, so data layouts and other features do not change.
+FeatureRollJumpSteering = 1
+;	| Allow steering after jumping from a roll
+FeatureAirRoll = 1
+;	| Press A/B/C in the air (after a spring, for example) to curl into a ball
+FeatureInstantTally = 1
+;	| Holding A/B/C finishes the act bonus count at once
+FeatureStarPostRings = 1
+;	| Star Posts keep the ring count; 0 = restart from a Star Post with no rings
+FeatureSmoothSlots = 1
+;	| The Slots bonus stage rotates in 256 steps instead of 64
+FeatureBlueKnuckles = 1
+;	| Player mode 4, Blue Knuckles, can be picked in the Level Select
+
+	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles)&~1
+		error "Feature options must be 0 or 1"
+	endif
 
 Size_of_Snd_driver_guess = $E00
 Size_of_Snd_driver2_guess = $690
@@ -10428,7 +10449,11 @@ LevelSelect_PickCharacterNumber:
 		btst	#button_C,(Ctrl_1_pressed).w
 		beq.s	locret_7F60
 		addq.w	#1,(Player_option).w
+	if FeatureBlueKnuckles
 		cmpi.w	#5,(Player_option).w	; Blue Knuckles fix: player mode 4 is selectable
+	else
+		cmpi.w	#4,(Player_option).w
+	endif
 		blo.s	locret_7F60
 		move.w	#0,(Player_option).w
 
@@ -22461,6 +22486,9 @@ loc_11056:
 
 
 AirRoll:
+	if FeatureAirRoll=0
+		rts				; Air Roll disabled
+	endif
 		moveq	#button_A_mask|button_B_mask|button_C_mask,d0
 		and.b	(Ctrl_1_pressed_logical).w,d0	; is A, B, or C pressed?
 
@@ -22501,6 +22529,9 @@ AirRoll_Check:
 ; ---------------------------------------------------------------------------
 
 AirRoll_Tails:
+	if FeatureAirRoll=0
+		rts				; Air Roll disabled
+	endif
 		cmpi.w	#2,(Player_mode).w	; is Tails playing alone?
 		beq.s	.human			; if so, branch
 		tst.w	(Tails_CPU_idle_timer).w	; has player 2 taken control?
@@ -23187,6 +23218,10 @@ Sonic_ChgJumpDir:
 		move.w	Max_speed-Max_speed(a4),d6
 		move.w	Acceleration-Max_speed(a4),d5
 		asl.w	#1,d5
+	if FeatureRollJumpSteering=0
+		btst	#Status_RollJump,status(a0)	; did the player jump from rolling?
+		bne.s	Sonic_Jump_ResetScr		; if yes, branch to skip midair control
+	endif
 		move.w	x_vel(a0),d0
 		btst	#button_left,(Ctrl_1_held_logical).w
 		beq.s	loc_11682	; if not holding left, branch
@@ -23435,7 +23470,11 @@ loc_1182E:
 		move.b	default_x_radius(a0),x_radius(a0)
 	endif
 		btst	#Status_Roll,status(a0)
+	if FeatureRollJumpSteering
 		bne.s	locret_118B2
+	else
+		bne.s	Sonic_RollJump
+	endif
 		move.b	#$E,y_radius(a0)
 		move.b	#7,x_radius(a0)
 		move.b	#2,anim(a0)	; use "jumping" animation
@@ -23452,6 +23491,14 @@ loc_118AE:
 
 locret_118B2:
 		rts
+
+	if FeatureRollJumpSteering=0
+; ---------------------------------------------------------------------------
+
+Sonic_RollJump:
+		bset	#Status_RollJump,status(a0)	; set the rolling+jumping flag
+		rts
+	endif
 ; End of function Sonic_Jump
 
 
@@ -23469,14 +23516,18 @@ Sonic_JumpHeight:
 loc_118D2:
 		cmp.w	y_vel(a0),d1		; is y speed greater than 4? (2 if underwater)
 		ble.w	Sonic_ShieldMoves	; if not, branch
+	if FeatureAirRoll
 		move.b	(Ctrl_1_pressed_logical).w,d0
 		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0
 		bne.w	Sonic_ShieldMoves	; freshly pressed: check ability without cutting height
+	endif
 		move.b	(Ctrl_1_held_logical).w,d0
 		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0	; are buttons A, B or C being held?
 		bne.s	locret_118E8		; if yes, branch (no cut)
 		move.w	d1,y_vel(a0)		; cap jump height
+	if FeatureAirRoll
 		bra.w	Sonic_ShieldMoves	; then check for ability
+	endif
 
 locret_118E8:
 		rts
@@ -28460,6 +28511,10 @@ Tails_InputAcceleration_Freespace:
 		move.w	Max_speed_P2-Max_speed_P2(a4),d6
 		move.w	Acceleration_P2-Max_speed_P2(a4),d5
 		asl.w	#1,d5
+	if FeatureRollJumpSteering=0
+		btst	#Status_RollJump,status(a0)	; did the player jump from rolling?
+		bne.s	loc_14ECC		; if yes, branch to skip midair control
+	endif
 		move.w	x_vel(a0),d0
 		btst	#button_left,(Ctrl_2_held_logical).w
 		beq.s	loc_14EAC
@@ -28692,7 +28747,11 @@ loc_1504C:
 		move.b	default_x_radius(a0),x_radius(a0)
 	endif
 		btst	#Status_Roll,status(a0)
+	if FeatureRollJumpSteering
 		bne.s	locret_150D0
+	else
+		bne.s	loc_150D2
+	endif
 		move.b	#$E,y_radius(a0)
 		move.b	#7,x_radius(a0)
 		move.b	#2,anim(a0)
@@ -28709,6 +28768,14 @@ loc_150CC:
 
 locret_150D0:
 		rts
+
+	if FeatureRollJumpSteering=0
+; ---------------------------------------------------------------------------
+
+loc_150D2:
+		bset	#Status_RollJump,status(a0)	; set the rolling+jumping flag
+		rts
+	endif
 ; End of function Tails_Jump
 
 
@@ -28726,14 +28793,18 @@ Tails_JumpHeight:
 loc_150F0:
 		cmp.w	y_vel(a0),d1
 		ble.s	Tails_Test_For_Flight
+	if FeatureAirRoll
 		move.b	(Ctrl_2_pressed_logical).w,d0
 		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0
 		bne.w	Tails_Test_For_Flight	; freshly pressed: check ability without cutting height
+	endif
 		move.b	(Ctrl_2_held_logical).w,d0
 		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0
 		bne.s	locret_15104
 		move.w	d1,y_vel(a0)
+	if FeatureAirRoll
 		bra.w	Tails_Test_For_Flight	; then check for ability
+	endif
 
 locret_15104:
 		rts
@@ -32504,6 +32575,10 @@ Knux_ChgJumpDir:
 		move.w	Max_speed-Max_speed(a4),d6
 		move.w	Acceleration-Max_speed(a4),d5
 		asl.w	#1,d5
+	if FeatureRollJumpSteering=0
+		btst	#Status_RollJump,status(a0)	; did the player jump from rolling?
+		bne.s	loc_176D4		; if yes, branch to skip midair control
+	endif
 		move.w	x_vel(a0),d0
 		btst	#button_left,(Ctrl_1_held_logical).w
 		beq.s	loc_176B4
@@ -32624,7 +32699,11 @@ loc_1775C:
 		move.b	default_x_radius(a0),x_radius(a0)
 	endif
 		btst	#Status_Roll,status(a0)
+	if FeatureRollJumpSteering
 		bne.s	locret_177E0
+	else
+		bne.s	loc_177E2
+	endif
 		move.b	#$E,y_radius(a0)
 		move.b	#7,x_radius(a0)
 		move.b	#2,anim(a0)
@@ -32641,6 +32720,14 @@ loc_177DC:
 
 locret_177E0:
 		rts
+
+	if FeatureRollJumpSteering=0
+; ---------------------------------------------------------------------------
+
+loc_177E2:
+		bset	#Status_RollJump,status(a0)	; set the rolling+jumping flag
+		rts
+	endif
 ; End of function Knux_Jump
 
 
@@ -32658,14 +32745,18 @@ Knux_JumpHeight:
 loc_17800:
 		cmp.w	y_vel(a0),d1
 		ble.w	Knux_Test_For_Glide
+	if FeatureAirRoll
 		move.b	(Ctrl_1_pressed_logical).w,d0
 		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0
 		bne.w	Knux_Test_For_Glide	; freshly pressed: check ability without cutting height
+	endif
 		move.b	(Ctrl_1_held_logical).w,d0
 		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0
 		bne.s	locret_17816
 		move.w	d1,y_vel(a0)
+	if FeatureAirRoll
 		bra.w	Knux_Test_For_Glide	; then check for ability
+	endif
 
 locret_17816:
 		rts
@@ -61999,6 +62090,14 @@ Load_Starpost_Settings:
 		move.w	(Saved_Y_pos).w,(Player_1+y_pos).w
 		move.w	(Saved_ring_count).w,(Ring_count).w
 		move.b	(Saved_extra_life_flags).w,(Extra_life_flags).w
+	if FeatureStarPostRings=0
+		tst.b	(Respawn_table_keep).w		; returning from a Special Stage or bonus stage?
+		bne.s	loc_2D274			; if so, keep the rings
+		clr.w	(Ring_count).w
+		clr.b	(Extra_life_flags).w
+
+loc_2D274:
+	endif
 		move.l	(Saved_timer).w,(Timer).w
 		move.b	#60-1,(Timer_frame).w
 		subq.b	#1,(Timer_second).w
@@ -62863,6 +62962,7 @@ Obj_LevelResultsWait:
 ; ---------------------------------------------------------------------------
 
 loc_2DC5C:
+	if FeatureInstantTally
 		moveq	#button_A_mask|button_B_mask|button_C_mask,d0
 		and.b	(Ctrl_1_held).w,d0		; is button A, B, or C held?
 		beq.s	.normalTally			; if not, tick down score tally normally
@@ -62875,6 +62975,7 @@ loc_2DC5C:
 		moveq	#0,d0				; set remaining bonus to 0 so tally is complete
 		bra.s	loc_2DC7E			; skip regular tally logic
 .normalTally:
+	endif
 		moveq	#0,d0
 		tst.w	(Time_bonus_countdown).w
 		beq.s	loc_2DC6E
@@ -98407,6 +98508,9 @@ Slots_RenderLayout:
 		bsr.w	sub_4B592
 		lea	(Chunk_table+$7800).l,a1
 		move.b	(Stat_table).w,d0
+	if FeatureSmoothSlots=0
+		andi.b	#$FC,d0				; rotate in 64 steps
+	endif
 		jsr	(GetSineCosine).l
 		move.w	d0,d4
 		move.w	d1,d5
@@ -99573,6 +99677,9 @@ loc_4BF62:
 
 loc_4BF9A:
 		move.b	(Stat_table).w,d0
+	if FeatureSmoothSlots=0
+		andi.b	#$FC,d0				; rotate in 64 steps
+	endif
 		jsr	(GetSineCosine).l
 		lea	(Player_1).w,a1
 		move.w	#$460,d2

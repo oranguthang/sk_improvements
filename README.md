@@ -8,6 +8,10 @@ See also:
 - Sonic Retro Disassemblies: https://info.sonicretro.org/Disassemblies
 - Sonic Retro How-To guides: https://info.sonicretro.org/SCHG_How-to:Guide
 
+## Build options
+
+Build with `buildSK.bat` (Sonic & Knuckles, `skbuilt.bin`) or `buildS3Complete.bat` (Sonic 3 & Knuckles, `sonic3k.bin`). The switches `FixBugs` and `Feature*` near the top of `sonic3k.asm` apply to both. Every `Feature*` switch is 1 by default; 0 restores the original behaviour of that addition. See the [modding reference](docs/modding.md) for the feature options, the ported bug fixes and the water settings table. Keep both builds and both values of every switch assemblable when changing shared routines.
+
 ## Built-in fixes
 
 The disassembly's built-in `FixBugs` flag is enabled, applying approximately 59 bug fixes already present in the codebase, including skid animation register corruption for all characters, sprite height initialization for various objects, boss attack positioning, Super Sonic palette fade-in, and many other minor bugs.
@@ -32,18 +36,6 @@ The disassembly's built-in `FixBugs` flag is enabled, applying approximately 59 
 Six-button controllers are detected on both ports. X, Y, Z, and Mode have separate held/pressed input states in `Ctrl_1_held_6B` / `Ctrl_1_pressed_6B` and their player-two equivalents; bit 7 of the held state indicates a detected six-button controller. The extra buttons currently have no gameplay bindings. Enable six-button controllers in your emulator to use these inputs.
 
 Blue Knuckles (`Player_mode` 4) can be picked in the Level Select by pressing C until the character number reads 04. Every player mode of 3 or higher now follows Knuckles' route, level events and abilities, and character-indexed tables are clamped so modes above 3 can no longer read past their end (signpost, Slots, Special Stage results, Continue screen, ending). Only mode 3 loads Knuckles' red palette, so mode 4 keeps Sonic's colors. Super/Hyper Blue Knuckles uses Super Knuckles' palette cycle with the red and blue channels swapped and returns to his blue colors, underwater included, when the form ends.
-
-## Engine changes for modders
-
-### Water settings table
-
-Inspired by [Work with Water in S3K](https://info.sonicretro.org/SCHG_How-to:Work_with_Water_in_S3K). Which acts have water used to be decided by chains of hard-coded zone checks in `CheckLevelForWater` and `LoadWaterPalette`. It now comes from the `WaterSettings` table in `sonic3k.asm`: one `waterlevel` line per act with water, giving its underwater palette ID, the palette data used along an uneven water surface, Knuckles' underwater colors, and these flags:
-
-- `WaterFlag_FlatSurface`: flat surface handled by `HInt2`, as in Hydrocity
-- `WaterFlag_NoKnuckles`: no water for player modes 3 and above
-- `WaterFlag_NoKnucklesAtActStart`: together with `WaterFlag_NoKnuckles`, only when the act is started directly rather than continued from the act before (Angel Island 2)
-
-To give another act water, add a `waterlevel` line for it and set its starting height in `Levels/Misc/StartingWaterHeights.bin` (two words per zone, acts 1 and 2). Moving water also needs a routine in `DynamicWaterHeight_Index`. Knuckles' colors are now taken from the table entry, and an entry of 0 keeps the palette's own colors, so water in Mushroom Hill or later zones no longer reads past the end of `Pal_WaterKnux`. The original game behaves the same as before.
 
 ## Disclaimer
 
