@@ -66,8 +66,10 @@ FeatureExtraLives = 1
 ;	| An extra life for every 100 rings; 0 = only at 100 and 200 rings
 FeatureInvincibilityFlash = 1
 ;	| The invincibility stars blink during their last two seconds
+FeatureFastSoundTest = 1
+;	| B+A steps the Level Select sound test back by $10 (A alone steps ahead)
 
-	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera|FeatureExtraLives|FeatureInvincibilityFlash)&~1
+	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera|FeatureExtraLives|FeatureInvincibilityFlash|FeatureFastSoundTest)&~1
 		error "Feature options must be 0 or 1"
 	endif
 
@@ -10436,6 +10438,15 @@ loc_7EC6:
 loc_7ED6:
 		btst	#button_A,d1
 		beq.s	loc_7EE4
+	if FeatureFastSoundTest
+		btst	#button_B,(Ctrl_1).w		; B held: A steps back by $10
+		beq.s	.ahead
+		subi.b	#$10,d0
+		bra.s	loc_7EE4
+; ---------------------------------------------------------------------------
+
+.ahead:
+	endif
 		addi.b	#$10,d0
 		andi.b	#$FF,d0
 
