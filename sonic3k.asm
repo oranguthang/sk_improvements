@@ -10094,6 +10094,17 @@ LevelSelect_S2Options:
 
 		restore
 
+		; Add the CHEATS item below the sound test
+		lea	(LevelSelect_CheatsItemText).l,a1
+		lea	(RAM_start+planeLocH28($16,$19)).l,a2
+		moveq	#LevelSelect_CheatsItemText_End-LevelSelect_CheatsItemText-1,d1
+
+	.cheatstext:
+		moveq	#0,d0
+		move.b	(a1)+,d0
+		move.w	d0,(a2)+
+		dbf	d1,.cheatstext
+
 		; Send our built plane map to VRAM
 		lea	(RAM_start).l,a1
 		move.l	#vdpComm(VRAM_Plane_A_Name_Table,VRAM,WRITE),d0
@@ -10195,6 +10206,8 @@ loc_7CA0:
 		move.w	(Level_select_option).w,d0
 		add.w	d0,d0
 		move.w	(a1,d0.w),d0
+		cmpi.w	#$FFFE,d0		; CHEATS?
+		beq.w	LevelSelect_OpenCheats
 		bmi.w	LevelSelect_Return	; sound test
 		cmpi.w	#$5555,d0		; This was used in Sonic 3 for the S&K zones
 		beq.w	LevelSelect_Main	; If entry is $5555, don't do anything
@@ -10264,11 +10277,17 @@ LS_Level_Order:
 		dc.w $4000	; Special Stage 1
 		dc.w $4001	; Special Stage 2
 		dc.w $FFFF	; Sound Test
+		dc.w $FFFE	; CHEATS
 ; ---------------------------------------------------------------------------
 
 LevelSelect_Return:
 		move.b	#GameMode_SegaScreen,(Game_mode).w
 		rts
+; ---------------------------------------------------------------------------
+
+LevelSelect_OpenCheats:
+		jsr	(LevelSelect_Cheats).l
+		bra.w	LevelSelect_Main
 ; ---------------------------------------------------------------------------
 
 LevelSelect_CheckKnuckles:
@@ -10373,14 +10392,14 @@ loc_7E74:
 		beq.s	loc_7E94
 		subq.w	#1,d0		; decrease by 1
 		bcc.s	loc_7E94	; >= 0?
-		moveq	#$20,d0		; set to $20
+		moveq	#$21,d0		; set to $21, CHEATS
 
 loc_7E94:
 		btst	#button_down,d1
 		beq.s	loc_7EA4
 		addq.w	#1,d0		; yes, add 1
-		cmpi.w	#$21,d0
-		blo.s	loc_7EA4	; smaller than $21?
+		cmpi.w	#$22,d0
+		blo.s	loc_7EA4	; smaller than $22?
 		moveq	#0,d0		; if not, set to 0
 
 loc_7EA4:
@@ -10461,8 +10480,8 @@ LevelSelect_SwitchTable:
 		dc.b $1F	; 13
 		dc.b $20	; 14
 		dc.b $20	; 15
-		dc.b $20	; 16
-		dc.b $20	; 17
+		dc.b $21	; 16
+		dc.b $21	; 17
 		dc.b 0		; 18
 		dc.b 1		; 19
 		dc.b 2		; 20
@@ -10478,7 +10497,7 @@ LevelSelect_SwitchTable:
 		dc.b $C		; 30
 		dc.b $D		; 31
 		dc.b $E		; 32
-		dc.b $F		; 33
+		dc.b $10	; 33 (CHEATS)
 		dc.b $10	; 34
 		dc.b $11	; 35
 ; ---------------------------------------------------------------------------
@@ -10636,6 +10655,7 @@ LevSel_MarkTable:	; 4 bytes per level select entry
 		dc.b  $13, $2C, $13, $4A
 		dc.b  $13, $2C, $14, $4A
 		dc.b  $16, $2C, $16, $4A
+		dc.b  $19, $2C,   0,   0	; CHEATS (no act number)
 LevSel_MappingOffsets:
 		dc.w planeLocH28(3,1)
 		dc.w planeLocH28(3,4)
