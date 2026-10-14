@@ -62,8 +62,10 @@ FeatureHomingAttack = 1
 ;	| instead of the Insta-Shield; elemental shields keep their own moves
 FeatureExtendedCamera = 1
 ;	| Let the camera look ahead of the player at speed and while charging a Spin Dash
+FeatureExtraLives = 1
+;	| An extra life for every 100 rings; 0 = only at 100 and 200 rings
 
-	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera)&~1
+	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera|FeatureExtraLives)&~1
 		error "Feature options must be 0 or 1"
 	endif
 
@@ -15948,6 +15950,7 @@ Write_SaveGame:
 		include "Improvements/Settings.asm"
 		include "Improvements/Cheats.asm"
 		include "Improvements/DebugHud.asm"
+		include "Improvements/QoL.asm"
 
 ; ---------------------------------------------------------------------------
 SaveGame_NextLevel:
@@ -36087,6 +36090,10 @@ GiveRing_1P:
 		bhs.s	JmpTo_Play_SFX			; if yes, play the ring sound
 		addq.w	#1,(Ring_count).w		; add 1 to the ring count
 		ori.b	#1,(Update_HUD_ring_count).w	; set flag to update the ring counter in the HUD
+	if FeatureExtraLives
+		jsr	(ExtraLives_Check1P).l		; a life for every 100 rings?
+		beq.s	JmpTo_Play_SFX			; if not, play the ring sound
+	else
 		cmpi.w	#100,(Ring_count).w		; does the player 1 have less than 100 rings?
 		blo.s	JmpTo_Play_SFX			; if yes, play the ring sound
 		bset	#1,(Extra_life_flags).w		; test and set the flag for the first extra life
@@ -36095,6 +36102,7 @@ GiveRing_1P:
 		blo.s	JmpTo_Play_SFX			; if yes, play the ring sound
 		bset	#2,(Extra_life_flags).w		; test and set the flag for the second extra life
 		bne.s	JmpTo_Play_SFX			; if it was set before, play the ring sound
+	endif
 
 loc_1A5D8:
 		addq.b	#1,(Life_count).w		; add 1 to the life count
@@ -36125,6 +36133,10 @@ loc_1A608:
 		beq.s	GiveRing_1P
 		ori.b	#1,(_unkFEBE).w
 		move.w	#sfx_RingRight,d0
+	if FeatureExtraLives
+		jsr	(ExtraLives_CheckP2).l		; a life for every 100 rings?
+		beq.s	loc_1A644
+	else
 		cmpi.w	#100,(Ring_count_P2).w
 		blo.s	loc_1A644
 		bset	#1,(Extra_life_flags_P2).w
@@ -36133,6 +36145,7 @@ loc_1A608:
 		blo.s	loc_1A644
 		bset	#2,(Extra_life_flags_P2).w
 		bne.s	loc_1A644
+	endif
 
 loc_1A638:
 		addq.b	#1,(Life_count_P2).w
@@ -41527,6 +41540,10 @@ loc_1D8CC:
 
 loc_1D8DA:
 		ori.b	#1,(a3)
+	if FeatureExtraLives
+		jsr	(ExtraLives_Check).l		; a life for every 100 rings?
+		bne.s	loc_1D8FE
+	else
 		cmpi.w	#100,(a2)
 		blo.s	loc_1D8F6
 		bset	#1,(a4)
@@ -41535,6 +41552,7 @@ loc_1D8DA:
 		blo.s	loc_1D8F6
 		bset	#2,(a4)
 		beq.s	loc_1D8FE
+	endif
 
 loc_1D8F6:
 		moveq	#signextendB(sfx_RingRight),d0
