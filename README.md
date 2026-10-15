@@ -12,6 +12,41 @@ See also:
 
 Build the game with `buildS3Complete.bat` (or `lua buildS3Complete.lua`), which writes `sonic3k.bin`: Sonic 3 & Knuckles with the Sonic 3 data built in. The Sonic & Knuckles-only build was removed, and the standalone Sonic 3 build (`buildS3`, `s3.asm`) is kept as upstream left it. The switches `FixBugs` and `Feature*` are near the top of `sonic3k.asm`. Every `Feature*` switch is 1 by default; 0 restores the original behaviour of that addition. See the [modding reference](docs/modding.md) for the feature options, the ported bug fixes and the water settings table. Keep both values of every switch assemblable when changing shared routines.
 
+## Features
+
+Gameplay additions, each behind its own switch near the top of `sonic3k.asm` (1 = on, 0 = the original game; see the [modding reference](docs/modding.md) for the details and what 0 restores):
+
+| Switch | Default | What it does |
+|---|---|---|
+| `FeatureRollJumpSteering` | 1 | Steering after jumping from a roll |
+| `FeatureAirRoll` | 1 | A/B/C in the air (after a spring, for example) curls the player into a ball |
+| `FeatureInstantTally` | 1 | Holding A/B/C finishes the act bonus count at once |
+| `FeatureStarPostRings` | 1 | Restarting at a Star Post keeps the ring count |
+| `FeatureSmoothSlots` | 1 | The Slots bonus stage rotates in 256 steps instead of 64 |
+| `FeatureBlueKnuckles` | 1 | Player mode 4, Blue Knuckles, in the Level Select |
+| `FeatureHomingAttack` | 1 | Sonic's Homing Attack, or a Jump Dash without a target, instead of the Insta-Shield |
+| `FeatureExtendedCamera` | 1 | The camera looks ahead at top speed and while charging a Spin Dash |
+| `FeatureExtraLives` | 1 | A life for every 100 rings, not only at 100 and 200 |
+| `FeatureInvincibilityFlash` | 1 | The invincibility stars blink during their last two seconds |
+| `FeatureFastSoundTest` | 1 | B+A steps the Level Select sound test back by $10 |
+| `FeatureSpecialStageSelect` | 1 | Left/Right on SPECIAL STAGE in the Level Select choose the stage |
+| `FeatureLightDash` | 1 | In the air, A next to a chain of 3+ rings dashes along it (Sonic, Tails, Knuckles) |
+| `FeaturePeelOut` | 1 | Sonic's Super Peel-Out: standing still, hold Up and press A/B/C |
+| `FeatureInfiniteLives` | 0 | Optional: no lives counter, Game Over or continues; 1-ups give 10 rings |
+| `FeatureCDDrowning` | 0 | Optional: the music keeps playing under water and the air warning beeps every second, as in Sonic CD |
+
+The attract demos keep the original air move and camera, so they play as recorded. There is no `FeatureVictoryPoses` as in Sonic 1 and Sonic 2 Improvements: Sonic 3 & Knuckles already has victory poses for all three characters. There is no `FeatureCentiseconds`: levels have no free video memory for the extra clock digits.
+
+Always in the build, without a switch:
+
+- Vladikcomper's MD Debugger with symbolic backtraces (see [Error diagnostics](#error-diagnostics))
+- The Level Select unlock, the CHEATS page (ALL EMERALDS, DEBUG, SUPER RINGS, RING DRAIN, GOD MODE), debug coordinates and their SRAM record (see [Cheats and settings](#cheats-and-settings))
+- The disassembly's `FixBugs` fixes and the ported Sonic Retro fixes (see [Built-in fixes](#built-in-fixes) and [Implemented Sonic Retro tutorials](#implemented-sonic-retro-tutorials))
+- The data-driven water table (`WaterSettings`) and bounds-safe character tables for player modes above 3
+- Flamewing's UltraDMAQueue and six-button controller support
+- Faster Kosinski and Enigma decompression, `GetArcTan`, airborne collision and ring loss, all with unchanged gameplay (see [optimisations](docs/modding.md#optimisations))
+- A demo cycle test bench (see [Tests](#tests))
+
 ## Cheats and settings
 
 The Level Select (unlocked by the game's Angel Island vine code or the Sonic 1 title code Up, Down, Down, Down, Left, Right) has a CHEATS page: ALL EMERALDS, DEBUG, SUPER RINGS, RING DRAIN and GOD MODE. The unlock, the cheats and the Level Select character are kept in an SRAM record that leaves the save files untouched, and debug mode shows the coordinates in the upper right corner. See [settings, cheats and SRAM](docs/settings.md).
@@ -61,6 +96,19 @@ The disassembly's built-in `FixBugs` flag is enabled, applying approximately 59 
 Six-button controllers are detected on both ports. X, Y, Z, and Mode have separate held/pressed input states in `Ctrl_1_held_6B` / `Ctrl_1_pressed_6B` and their player-two equivalents; bit 7 of the held state indicates a detected six-button controller. The extra buttons currently have no gameplay bindings. Enable six-button controllers in your emulator to use these inputs.
 
 Blue Knuckles (`Player_mode` 4) can be picked in the Level Select by pressing C until the character number reads 04. Every player mode of 3 or higher now follows Knuckles' route, level events and abilities, and character-indexed tables are clamped so modes above 3 can no longer read past their end (signpost, Slots, Special Stage results, Continue screen, ending). Only mode 3 loads Knuckles' red palette, so mode 4 keeps Sonic's colors. Super/Hyper Blue Knuckles uses Super Knuckles' palette cycle with the red and blue channels swapped and returns to his blue colors, underwater included, when the form ends.
+
+## Open questions
+
+Things not yet checked in the emulator, or left as they are on purpose:
+
+- Homing Attack: that bosses are never targeted was not tried in a boss fight.
+- Light Dash: chains under water, across loops or into walls, and an act change during a dash.
+- Super Peel-Out: tried in Angel Island only.
+- CHEATS: ALL EMERALDS was not followed through the giant rings, Doomsday and the endings.
+- `FeatureInstantTally`, `FeatureStarPostRings` and `FeatureSmoothSlots` were not played with the switch at 0.
+- Extended camera: the snap down after a long fall was not reproduced.
+- The Kosinski queue's fast decoder is checked to keep to the registers that `Set_Kos_Bookmark` saves and to write only its output; an interruption at every point was not simulated.
+- `Draw_Sprite` keeps the original code (see [optimisations](docs/modding.md#optimisations)).
 
 ## Disclaimer
 
