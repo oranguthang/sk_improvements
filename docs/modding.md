@@ -43,6 +43,8 @@ With `FeatureHomingAttack`, a fresh A/B/C press in the air after a jump or an Ai
 
 Targets come from `Collision_response_list`, so only objects that could be touched in the last frame count; bosses (`boss_hitcount2` set) are never picked. One dash is allowed per jump (`double_jump_flag` = 2). Breaking a badnik or monitor with it (`Touch_ResetAirDash`) stops Sonic and bounces him up at -$500, and he may dash again. The Insta-Shield object stays in the Shield slot but is never started.
 
+The attract demos were recorded with the original moves, so while one plays (`Demo_mode_flag`) Sonic still does the Insta-Shield, and Super Sonic and invincible Sonic do nothing, as in the original game.
+
 `jumping` = 2 marks a jump the button may not cut short: the Air Roll sets it, so a spring launch keeps its height when the button is released, and so do the dash and the bounce after a hit. A normal jump is still `jumping` = 1.
 
 ## Light Dash
@@ -80,7 +82,7 @@ To give another act water, add a `waterlevel` line for it and set its starting h
 
 ## Extended camera
 
-With `FeatureExtendedCamera`, `Player_PanCamera` moves `Camera_pan_X` 2 pixels a frame up to 64 pixels from the centre (160) while the player the 1-player camera follows moves at top speed ($600) or charges a Spin Dash, so more of the way ahead is visible, as in Sonic 1 and Sonic 2 Improvements. It holds until the speed drops below $4B0, then eases back, as it also does while an object or cutscene controls the player (`object_control` bit 7). `MoveCameraX` keeps the player `Camera_pan_X`-16 to `Camera_pan_X` pixels from the left edge; a forced scroll position (`Scroll_force_positions`) stays centred. Competition mode does not use it.
+With `FeatureExtendedCamera`, `Player_PanCamera` moves `Camera_pan_X` 2 pixels a frame up to 64 pixels from the centre (160) while the player the 1-player camera follows moves at top speed ($600) or charges a Spin Dash, so more of the way ahead is visible, as in Sonic 1 and Sonic 2 Improvements. It holds until the speed drops below $4B0, then eases back, as it also does while an object or cutscene controls the player (`object_control` bit 7). `MoveCameraX` keeps the player `Camera_pan_X`-16 to `Camera_pan_X` pixels from the left edge; a forced scroll position (`Scroll_force_positions`) stays centred. Competition mode and the attract demos do not use it: the demos were recorded with the camera centred, and a panned camera loads objects such as platforms at other times, so the recorded input would no longer fit.
 
 The direction comes from `x_vel` on the ground as well as in the air: `ground_vel` points along the surface and has the opposite sign on a ceiling or in a loop, which panned the old work-in-progress port the wrong way. Level events that read `Camera_X_pos` see the panned camera, so they can start up to 64 pixels earlier or later than in the original game.
 

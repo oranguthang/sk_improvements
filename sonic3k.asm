@@ -22620,6 +22620,8 @@ Player_PanCamera:
 		bne.s	.return
 		tst.w	(Competition_mode).w		; competition mode has its own cameras
 		bne.s	.return
+		tst.w	(Demo_mode_flag).w		; the demos were recorded with the camera centred:
+		bne.s	.return				; objects would load at other times and the demo drift
 		move.w	(Camera_pan_X).w,d1
 		moveq	#0,d0				; no speed: ease back to the centre
 		tst.b	object_control(a0)		; is an object or cutscene moving the player?
@@ -23701,17 +23703,22 @@ Sonic_ShieldMoves:
 		beq.s	Sonic_FireShield		; if not in a super-state, branch
 		bmi.w	Sonic_HyperDash			; if Hyper, branch
 	if FeatureHomingAttack
-		bra.w	Sonic_AirDash			; Super Sonic dashes too
-	else
+		tst.w	(Demo_mode_flag).w		; the demos were recorded with the original moves
+		beq.w	Sonic_AirDash			; Super Sonic dashes too
+	endif
 		move.b	#1,double_jump_flag(a0)
 		rts
-	endif
 ; ---------------------------------------------------------------------------
 
 Sonic_FireShield:
 		btst	#Status_Invincible,status_secondary(a0)	; first, does Sonic have invincibility?
 	if FeatureHomingAttack
-		bne.w	Sonic_AirDash				; if yes, the shields are inactive: dash
+		beq.s	.notInvincible
+		tst.w	(Demo_mode_flag).w			; the demos were recorded with the original moves
+		beq.w	Sonic_AirDash				; if invincible, the shields are inactive: dash
+		rts
+
+.notInvincible:
 	else
 		bne.w	locret_11A14				; if yes, branch
 	endif
@@ -23776,15 +23783,15 @@ loc_119E8:
 
 Sonic_InstaShield:
 	if FeatureHomingAttack
-		bra.w	Sonic_AirDash				; the Homing Attack replaces the Insta-Shield
-	else
+		tst.w	(Demo_mode_flag).w			; the demos were recorded with the Insta-Shield
+		beq.w	Sonic_AirDash				; the Homing Attack replaces the Insta-Shield
+	endif
 		btst	#Status_Shield,status_secondary(a0)	; does Sonic have an S2 shield? (the elementals were already filtered out at this point)
 		bne.s	locret_11A14				; if yes, branch
 		move.b	#1,(Shield+anim).w
 		move.b	#1,double_jump_flag(a0)
 		move.w	#sfx_InstaAttack,d0
 		jmp	(Play_SFX).l
-	endif
 ; ---------------------------------------------------------------------------
 
 locret_11A14:
@@ -33325,7 +33332,7 @@ locret_17A60:
 ; ---------------------------------------------------------------------------
 
 loc_17A62:
-		bsr.w	CheckLeftWallDist
+		jsr	(CheckLeftWallDist).l
 		tst.w	d1
 		bpl.s	loc_17A7A
 		sub.w	d1,x_pos(a0)
