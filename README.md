@@ -20,6 +20,18 @@ The Level Select (unlocked by the game's Angel Island vine code or the Sonic 1 t
 
 Every build includes Vladikcomper's MD Debugger: a crash shows the exception screen with the faulting label, registers, stack and a symbolic backtrace instead of restarting the game. `buildS3Complete.lua --no-symbols` leaves out the symbol names. See the [debugger guide](_debug/md-debugger/README.md) for controls, the layout rule and tool requirements.
 
+## Tests
+
+`tests/check_demo_cycle.py` plays the title screen's five attract demos (Angel Island, Hydrocity, Marble Garden, Flying Battery, Sandopolis) and prints, for each, the frames played, the frames player 1 spent dead, the furthest X reached and the rings; a healthy cycle has no deaths. With `--baseline OLD.bin` it plays the same demos on another build and compares them frame by frame (player 1 and 2, rings, camera), which is how changes meant to keep gameplay as it was, such as the optimisations, are checked. It needs Python 3 and Gens with the automation extension, built from [gens_automation](https://github.com/oranguthang/gens_automation) (its `Gens.exe` via `--gens` or `GENS_EXE`); neither is part of this repository.
+
+```
+python tests/check_demo_cycle.py --gens path/to/Gens.exe
+git worktree add ../sk_base HEAD~1   # then build sonic3k.bin there
+python tests/check_demo_cycle.py --gens path/to/Gens.exe --baseline ../sk_base/sonic3k.bin
+```
+
+The demos were recorded with the original game, so they keep its moves and centred camera (see the [modding reference](docs/modding.md)); the default build plays them frame for frame like a build with every `Feature` switch at 0.
+
 ## Built-in fixes
 
 The disassembly's built-in `FixBugs` flag is enabled, applying approximately 59 bug fixes already present in the codebase, including skid animation register corruption for all characters, sprite height initialization for various objects, boss attack positioning, Super Sonic palette fade-in, and many other minor bugs.
