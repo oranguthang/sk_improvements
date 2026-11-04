@@ -4706,10 +4706,22 @@ SuperHyper_PalCycle_Apply:
 		move.w	4(a0,d0.w),(a1)	; Write last palette entry
 		tst.b	(Water_flag).w
 		beq.w	locret_37EC
-		lea	(Water_palette+$4).w,a1
-		move.l	(a0,d0.w),(a1)+	; Write first two palette entries
-		move.w	4(a0,d0.w),(a1)	; Write last palette entry
-		rts
+		cmpi.w	#3,(Player_mode).w	; red Knuckles, solo or with Tails
+		bne.w	SuperHyper_PalCycle_ApplyUnderwater
+		tst.b	(Super_palette_status).w
+		bne.s	.knucklesCycle
+		lea	(Target_water_palette).w,a0	; restore the zone's original character colours
+		moveq	#4,d0
+		bra.w	SuperHyper_PalCycle_ApplyUnderwater
+
+.knucklesCycle:
+		move.w	d0,-(sp)
+		bsr.w	GetWaterSettings
+		move.w	(sp)+,d0
+		tst.w	d1
+		beq.w	SuperHyper_PalCycle_ApplyUnderwater
+		movea.l	WaterSettings_SuperKnuxColors(a1),a0
+		bra.w	SuperHyper_PalCycle_ApplyUnderwater
 ; ---------------------------------------------------------------------------
 PalCycle_SuperSonic:
 		dc.w $E66,$C42,$822
@@ -9666,28 +9678,29 @@ WaterFlag_FlatSurface =			1<<WaterFlag_FlatSurface_Bit
 WaterFlag_NoKnuckles =			1<<WaterFlag_NoKnuckles_Bit
 WaterFlag_NoKnucklesAtActStart =	1<<WaterFlag_NoKnucklesAtActStart_Bit
 
-waterlevel macro zoneact,flags,palid,transition,knuxcolors
+waterlevel macro zoneact,flags,palid,transition,knuxcolors,superknuxcolors
 		dc.w	zoneact
 		dc.b	flags,palid
-		dc.l	transition,knuxcolors
+		dc.l	transition,knuxcolors,superknuxcolors
 	endm
 
 WaterSettings_Flags =		2
 WaterSettings_PalID =		3
 WaterSettings_Transition =	4
 WaterSettings_KnuxColors =	8
-WaterSettings_Size =		$C
+WaterSettings_SuperKnuxColors =	$C
+WaterSettings_Size =		$10
 
 WaterSettings:
-		waterlevel $000, 0, PalID_AIZ_Water, WaterTransition_AIZ1, Pal_WaterKnux+0*6
-		waterlevel $001, WaterFlag_NoKnuckles|WaterFlag_NoKnucklesAtActStart, PalID_AIZ2_Water, WaterTransition_AIZ2, Pal_WaterKnux+0*6
-		waterlevel $100, WaterFlag_FlatSurface, PalID_HCZ1_Water, WaterTransition_HCZLBZ1, Pal_WaterKnux+1*6
-		waterlevel $101, WaterFlag_FlatSurface, PalID_HCZ2_Water, WaterTransition_HCZLBZ1, Pal_WaterKnux+1*6
-		waterlevel $301, WaterFlag_NoKnuckles, PalID_CNZ_Water, WaterTransition_CNZ2ICZ2, Pal_WaterKnux+3*6
-		waterlevel $501, 0, PalID_ICZ2_Water, WaterTransition_CNZ2ICZ2, Pal_WaterKnux+5*6
+		waterlevel $000, 0, PalID_AIZ_Water, WaterTransition_AIZ1, Pal_WaterKnux+0*6, Pal_SuperKnuxWater_AIZ
+		waterlevel $001, WaterFlag_NoKnuckles|WaterFlag_NoKnucklesAtActStart, PalID_AIZ2_Water, WaterTransition_AIZ2, Pal_WaterKnux+0*6, Pal_SuperKnuxWater_AIZ
+		waterlevel $100, WaterFlag_FlatSurface, PalID_HCZ1_Water, WaterTransition_HCZLBZ1, Pal_WaterKnux+1*6, Pal_SuperKnuxWater_HCZ
+		waterlevel $101, WaterFlag_FlatSurface, PalID_HCZ2_Water, WaterTransition_HCZLBZ1, Pal_WaterKnux+1*6, Pal_SuperKnuxWater_HCZ
+		waterlevel $301, WaterFlag_NoKnuckles, PalID_CNZ_Water, WaterTransition_CNZ2ICZ2, Pal_WaterKnux+3*6, Pal_SuperKnuxWater_LBZ
+		waterlevel $501, 0, PalID_ICZ2_Water, WaterTransition_CNZ2ICZ2, Pal_WaterKnux+5*6, Pal_SuperKnuxWater_ICZ
 		; Launch Base 1 has an underwater palette, but no water in the original game:
-		;waterlevel $600, 0, PalID_LBZ_Water, WaterTransition_HCZLBZ1, Pal_WaterKnux+6*6
-		waterlevel $601, 0, PalID_LBZ2_Water, WaterTransition_LBZ2, Pal_WaterKnux+6*6
+		;waterlevel $600, 0, PalID_LBZ_Water, WaterTransition_HCZLBZ1, Pal_WaterKnux+6*6, Pal_SuperKnuxWater_LBZ
+		waterlevel $601, 0, PalID_LBZ2_Water, WaterTransition_LBZ2, Pal_WaterKnux+6*6, Pal_SuperKnuxWater_LBZ
 		dc.w	-1	; end of list
 
 ; ---------------------------------------------------------------------------
@@ -9819,6 +9832,52 @@ loc_7A22:
 Pal_WaterKnux:
 		binclude "Levels/Misc/Palettes/Water Knuckles Patch.bin"
 		even
+
+; Red Knuckles underwater pulses, in highlight/body/shadow order.
+Pal_SuperKnuxWater_AIZ:
+		dc.w $CAC,$A6C,$848
+		dc.w $CCC,$C8C,$A6A
+		dc.w $ECE,$CAA,$A88
+		dc.w $ECE,$ECC,$CAA
+		dc.w $EEE,$ECE,$ECC
+		dc.w $ECE,$ECC,$CAA
+		dc.w $ECE,$CAA,$A88
+		dc.w $CCC,$C8C,$A6A
+		dc.w $CAC,$A6C,$848
+		dc.w $A6A,$A2A,$624
+Pal_SuperKnuxWater_HCZ:
+		dc.w $E4C,$C2C,$A28
+		dc.w $E6E,$E4E,$C48
+		dc.w $E8E,$E6C,$C6A
+		dc.w $EAE,$E8E,$E8C
+		dc.w $ECE,$EAE,$EAC
+		dc.w $EAE,$E8E,$E8C
+		dc.w $E8E,$E6C,$C6A
+		dc.w $E6E,$E4E,$C48
+		dc.w $E4C,$C2C,$A28
+		dc.w $E2A,$C0A,$A06
+Pal_SuperKnuxWater_ICZ:
+		dc.w $C8C,$A6A,$848
+		dc.w $CAC,$A6A,$848
+		dc.w $CAC,$A8A,$868
+		dc.w $EAC,$C8C,$A68
+		dc.w $EAE,$CAC,$A8A
+		dc.w $EAC,$C8C,$A68
+		dc.w $CAC,$A8A,$868
+		dc.w $CAC,$A6A,$848
+		dc.w $C8C,$A6A,$848
+		dc.w $A8A,$A6A,$646
+Pal_SuperKnuxWater_LBZ:
+		dc.w $86E,$84A,$646
+		dc.w $A8E,$A6C,$848
+		dc.w $CAE,$C8E,$A6A
+		dc.w $ECE,$EAE,$C8C
+		dc.w $EEE,$ECE,$EAE
+		dc.w $ECE,$EAE,$C8C
+		dc.w $CAE,$C8E,$A6A
+		dc.w $A8E,$A6C,$848
+		dc.w $86E,$84A,$646
+		dc.w $64C,$628,$624
 ; ---------------------------------------------------------------------------
 
 LevelSelect_S2Options:
