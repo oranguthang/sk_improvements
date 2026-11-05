@@ -4,7 +4,7 @@
 
 ; ---------------------------------------------------------------------------
 ; Title code Up, Down, Down, Down, Left, Right (as in s1_improvements and
-; s2_improvements) unlocks the Level Select and its CHEATS page, like the
+; s2_improvements) unlocks the title LEVEL SELECT and CHEATS choices, like the
 ; game's own code on the Angel Island vine. Called every title frame.
 ; ---------------------------------------------------------------------------
 
@@ -37,17 +37,19 @@ TitleUnlockCheat_Buttons:
 		even
 
 ; ---------------------------------------------------------------------------
-; CHEATS page of the Level Select (Start on the CHEATS item).
-; Up/Down select, Left/Right/A/B/C change, Start goes back to the level list.
+; CHEATS page opened directly from the title menu.
+; Up/Down select, Left/Right/A/B/C change, Start goes back to the title.
 ; Every change is saved in SRAM at once. The selected row is kept in the
 ; unused Debug_mode_cheat_counter.
 ; ---------------------------------------------------------------------------
 cheats_row_emeralds = 0
-cheats_row_debug = 1
-cheats_row_rings = 2
-cheats_row_drain = 3
-cheats_row_god = 4
-cheats_rows = 5
+cheats_row_super_emeralds = 1
+cheats_row_debug = 2
+cheats_row_rings = 3
+cheats_row_drain = 4
+cheats_row_god = 5
+cheats_row_music = 6
+cheats_rows = 7
 
 cheats_header_line = 4
 cheats_first_line = 8			; rows are two lines apart
@@ -60,6 +62,7 @@ LevelSelect_Cheats:
 		move	#$2700,sr
 		bsr.w	CheatsPage_Clear
 		bsr.w	CheatsPage_Draw
+		jsr	(Pal_FadeFromBlack).l
 		move	#$2300,sr
 
 .loop:
@@ -75,15 +78,6 @@ LevelSelect_Cheats:
 		tst.w	(sp)+				; leave the page?
 		beq.s	.loop
 		jsr	(Settings_Save).l
-		move	#$2700,sr
-		lea	(RAM_start).l,a1		; the Level Select's own plane map is still there
-		move.l	#vdpComm(VRAM_Plane_A_Name_Table,VRAM,WRITE),d0
-		moveq	#40-1,d1
-		moveq	#28-1,d2
-		jsr	(Plane_Map_To_VRAM).l
-		moveq	#palette_line_0,d3
-		jsr	(LevelSelect_DrawSoundNumber).l
-		move	#$2300,sr
 		rts
 ; End of function LevelSelect_Cheats
 
@@ -155,6 +149,18 @@ CheatsPage_Controls:
 		lea	CheatsPage_Vars(pc),a1
 		movea.w	(a1,d0.w),a1
 		eori.b	#1,(a1)				; ON/OFF rows
+		tst.w	d0
+		bne.s	.notChaos
+		tst.b	(Cheat_all_emeralds).w
+		bne.s	.notChaos
+		clr.b	(Cheat_super_emeralds).w
+.notChaos:
+		cmpi.w	#cheats_row_super_emeralds*2,d0
+		bne.s	.emeraldsReady
+		tst.b	(Cheat_super_emeralds).w
+		beq.s	.emeraldsReady
+		move.b	#1,(Cheat_all_emeralds).w
+.emeraldsReady:
 		cmpi.w	#cheats_row_debug*2,d0
 		bne.s	.notDebug
 		move.b	(a1),1(a1)			; the game sets Debug_cheat_flag as a word
@@ -200,8 +206,6 @@ CheatsPage_Controls:
 		move.b	(a1,d2.w),(Cheat_super_rings).w
 
 .save:
-		moveq	#signextendB(sfx_Switch),d0
-		jsr	(Play_SFX).l
 		jsr	(Settings_Save).l		; also turns the drain off at 0 rings
 
 .stay:
@@ -217,10 +221,12 @@ CheatsPage_Controls:
 ; RAM byte of each row (SUPER RINGS is handled separately)
 CheatsPage_Vars:
 		dc.w	Cheat_all_emeralds&$FFFF
+		dc.w	Cheat_super_emeralds&$FFFF
 		dc.w	Debug_cheat_flag&$FFFF
 		dc.w	Cheat_super_rings&$FFFF
 		dc.w	Cheat_ring_drain&$FFFF
 		dc.w	Cheat_god_mode&$FFFF
+		dc.w	Cheat_super_music&$FFFF
 CheatsPage_Vars_End:
 
 CheatsPage_RingSteps:
@@ -326,18 +332,17 @@ CheatsPage_Values:
 CheatsPage_Header:
 		dc.b	"CHEATS"
 CheatsPage_Labels:
-		dc.b	"ALL EMERALDS         "
+		dc.b	"ALL CHAOS EMERALDS   "
+		dc.b	"ALL SUPER EMERALDS   "
 		dc.b	"DEBUG                "
 		dc.b	"SUPER RINGS          "
 		dc.b	"RING DRAIN           "
 		dc.b	"GOD MODE             "
+		dc.b	"SUPER MUSIC          "
 CheatsPage_Labels_End:
 CheatsPage_Hint:
 		dc.b	"START: BACK"
 CheatsPage_Hint_End:
-LevelSelect_CheatsItemText:		; the CHEATS item of the level list
-		dc.b	"CHEATS"
-LevelSelect_CheatsItemText_End:
 		restore
 		even
 
@@ -349,7 +354,8 @@ LevelSelect_CheatsItemText_End:
 	endif
 
 ; ---------------------------------------------------------------------------
-; Cheat effects. None of them apply in title demos or Competition mode.
+; Emerald/ring cheats do not apply in title demos or Competition mode.
+; God Mode has separate physical-P1 helpers for Competition.
 ; Every helper keeps all registers.
 ; ---------------------------------------------------------------------------
 
@@ -369,7 +375,7 @@ Cheat_Allowed:
 ; End of function Cheat_Allowed
 
 ; ---------------------------------------------------------------------------
-; ALL EMERALDS: replaces "cmpi.b #7,(Chaos_emerald_count).w" and the same for
+; The separate Chaos/Super emerald cheats replace "cmpi.b #7,(Chaos_emerald_count).w" and the same for
 ; Super_emerald_count where the game decides on Super/Hyper forms, giant
 ; rings and the Doomsday Zone. With the cheat the flags are those of an
 ; equal compare (all seven); the real counts are never changed.
@@ -390,7 +396,7 @@ Cheat_CmpChaosEmeralds:
 ; End of function Cheat_CmpChaosEmeralds
 
 Cheat_CmpSuperEmeralds:
-		tst.b	(Cheat_all_emeralds).w
+		tst.b	(Cheat_super_emeralds).w
 		beq.s	.real
 		bsr.s	Cheat_Allowed
 		beq.s	.real
@@ -419,19 +425,6 @@ Cheat_CmpSuperRings:
 ; End of function Cheat_CmpSuperRings
 
 ; ---------------------------------------------------------------------------
-; GOD MODE: Z clear when nothing may hurt or kill the players
-; ---------------------------------------------------------------------------
-
-Cheat_GodMode:
-		tst.b	(Cheat_god_mode).w
-		beq.s	.return				; Z=1: off
-		bra.s	Cheat_Allowed
-
-.return:
-		rts
-; End of function Cheat_GodMode
-
-; ---------------------------------------------------------------------------
 ; GOD MODE instead of a death: below the bottom of the level the player
 ; bounces back up as an airborne, non-jumping player, so Left/Right can steer
 ; him back onto solid ground, as in s1_improvements; any other death is
@@ -440,17 +433,27 @@ Cheat_GodMode:
 
 Cheat_GodRescue:
 		tst.b	(Reverse_gravity_flag).w
-		bne.s	.return
+		bne.s	.reverse
 		move.w	(Camera_max_Y_pos).w,d0
 		addi.w	#$E0,d0
 		cmp.w	y_pos(a0),d0			; below the bottom boundary?
 		bge.s	.return
-		move.w	d0,y_pos(a0)			; back on the boundary
-		move.w	#-$A00,y_vel(a0)		; about one screen high
+		move.w	d0,y_pos(a0)
+		move.w	#-$A00,y_vel(a0)
+		bra.s	.bounce
+
+.reverse:
+		move.w	(Camera_min_Y_pos).w,d0
+		cmp.w	y_pos(a0),d0			; above the reversed death plane?
+		blt.s	.return
+		addq.w	#1,d0
+		move.w	d0,y_pos(a0)
+		move.w	#$A00,y_vel(a0)
+
+.bounce:
 		btst	#Status_Underwater,status(a0)
 		beq.s	.dry
-		move.w	#-$500,y_vel(a0)		; less is enough under water
-
+		asr.w	#1,y_vel(a0)
 .dry:
 		bset	#Status_InAir,status(a0)
 		clr.b	jumping(a0)			; releasing the button must not cut the bounce
@@ -460,3 +463,126 @@ Cheat_GodRescue:
 		moveq	#-1,d0
 		rts
 ; End of function Cheat_GodRescue
+
+
+Play_SuperMusic:
+		tst.b	(Cheat_super_music).w
+		bne.s	.theme
+		cmpi.b	#mus_Invincibility,(Music_playing).w
+		bne.s	.return
+		; A regular invincibility monitor is cancelled by the form.
+		bsr.w	Super_SelectBaseMusic
+		jmp	(Play_Music_IfChanged).l
+.theme:
+		moveq	#signextendB(mus_Invincibility),d0
+		jmp	(Play_Music).l
+.return:
+		rts
+
+Super_SelectBaseMusic:
+		move.w	(Current_music).w,d0
+		tst.b	(Boss_flag).w
+		beq.s	.return
+		moveq	#0,d0
+		move.b	(Boss_resume_music).w,d0
+		bne.s	.return
+		moveq	#mus_MinibossK,d0
+.return:
+		rts
+
+Super_RecoverMusic:
+		tst.b	(Cheat_super_music).w
+		beq.s	.return
+		cmpi.b	#mus_Invincibility,(Music_playing).w
+		bne.s	.return			; another event already replaced the theme
+	if FeatureCDDrowning=0
+		cmpi.b	#12,air_left(a0)
+		bls.s	.return
+	endif
+		bsr.w	Super_SelectBaseMusic
+		jmp	(Play_Music_IfChanged).l
+.return:
+		rts
+
+Super_SelectRecoveryMusic:
+		tst.b	(Cheat_super_music).w
+		bne.s	.return
+		tst.b	(Super_Sonic_Knux_flag).w
+		bne.s	.level
+		tst.b	(Super_Tails_flag).w
+		beq.s	.return
+.level:
+		move.w	(Current_music).w,d0
+.return:
+		rts
+
+; Keep a 1-up from replacing the identity of the underlying song.
+Music_Track:
+		cmpi.b	#mus_ExtraLife,d0
+		beq.s	.return
+		cmpi.b	#mus__End,d0
+		bhs.s	.command
+		move.b	d0,(Music_playing).w
+		cmpi.b	#mus_MinibossK,d0
+		beq.s	.boss
+		cmpi.b	#mus_EndBoss,d0
+		beq.s	.boss
+		cmpi.b	#mus_Miniboss,d0
+		beq.s	.boss
+		cmpi.b	#mus_FinalBoss,d0
+		bne.s	.return
+.boss:
+		move.b	d0,(Boss_resume_music).w
+.return:
+		rts
+.command:
+		cmpi.b	#cmd_FadeOut,d0
+		beq.s	.clear
+		cmpi.b	#cmd_FadeOut2,d0
+		beq.s	.clear
+		cmpi.b	#cmd_Stop,d0
+		bne.s	.return
+.clear:
+		clr.b	(Music_playing).w
+		rts
+
+Play_Music_IfChanged:
+		cmp.b	(Music_playing).w,d0
+		beq.s	.return
+		jmp	(Play_Music).l
+.return:
+		rts
+
+Cheat_GodModeActive:
+		tst.b	(Cheat_god_mode).w
+		beq.s	.return
+		tst.w	(Demo_mode_flag).w
+		beq.s	.active
+.return:
+		move	#4,ccr
+		rts
+.active:
+		move	#0,ccr
+		rts
+
+; Valid hit from a stage mechanism in a P1-only boss arena.
+Cheat_StageBossHit:
+		bsr.s	Cheat_GodModeActive
+		beq.s	.normal
+		move.b	#1,collision_property(a0)
+.normal:
+		subq.b	#1,collision_property(a0)
+		rts
+
+; Check the physical player slot in every game mode.
+Cheat_GodModePlayer:
+		cmpa.w	#Player_1,a0
+		beq.s	Cheat_GodModeActive
+		move	#4,ccr
+		rts
+
+Cheat_GodModeAir:
+		cmpa.w	#Player_1,a2
+		beq.s	Cheat_GodModeActive
+		move	#4,ccr
+		rts

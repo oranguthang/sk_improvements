@@ -3,6 +3,7 @@ Map_TitleScreenText_:
 		dc.w word_4CD0-Map_TitleScreenText_
 		dc.w word_4CFC-Map_TitleScreenText_
 		dc.w word_4D16-Map_TitleScreenText_
+		dc.w Title_CheatsText-Map_TitleScreenText_
 word_4CA4:	dc.w 7
 		dc.b    0,  $C, $20,   0,   0,   0
 		dc.b    0,  $C, $20,   4,   0, $20
@@ -19,11 +20,22 @@ word_4CD0:	dc.w 7
 		dc.b  $10,  $C, $20, $10,   0, $20
 		dc.b  $10,  $C, $20, $14,   0, $40
 		dc.b  $10,   4, $20, $24, $FF, $EC
-word_4CFC:	dc.w 4
-		dc.b    8,  $C, $20, $18,   0,   0
-		dc.b    8,  $C, $20, $1C,   0, $20
-		dc.b    8,  $C, $20, $20,   0, $40
-		dc.b    8,   4, $20, $24, $FF, $EC
+word_4CFC: dc.w 7
+		dc.b $00, $0C, $20, $18, $00, $00
+		dc.b $00, $0C, $20, $1C, $00, $20
+		dc.b $00, $0C, $20, $20, $00, $40
+		dc.b $10, $0C, $00, $2F, $00, $00
+		dc.b $10, $0C, $00, $33, $00, $20
+		dc.b $10, $0C, $00, $37, $00, $40
+		dc.b $00, $04, $20, $24, $FF, $EC
+Title_CheatsText: dc.w 7
+		dc.b $00, $0C, $00, $18, $00, $00
+		dc.b $00, $0C, $00, $1C, $00, $20
+		dc.b $00, $0C, $00, $20, $00, $40
+		dc.b $10, $0C, $20, $2F, $00, $00
+		dc.b $10, $0C, $20, $33, $00, $20
+		dc.b $10, $0C, $20, $37, $00, $40
+		dc.b $10, $04, $20, $24, $FF, $EC
 word_4D16:	dc.w 3
 		dc.b    0,   0,   0, $26,   0,   0
 		dc.b    0,  $C,   0, $27,   0, $10

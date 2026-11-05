@@ -389,7 +389,12 @@ LightDash_exit_y		ds.w 1
 LightDash_layout		ds.l 1			; the level's ring layout
 LightDash_RAM_end =		*
 PeelOut_charging		ds.b 1			; set while player 1 charges a Super Peel-Out (FeaturePeelOut)
-			ds.b $44-(LightDash_RAM_end-LightDash_RAM)-1	; unused
+Knuckles_Tails_flag	ds.b 1			; active Knuckles route with AI Tails
+Super_combo_timer	ds.b 1
+Super_combo_buttons	ds.b 1
+Boss_resume_music	ds.b 1			; latest boss BGM, independent of a Super theme
+Knuckles_partner_pending ds.b 1			; join after the solo Knuckles entrance
+			ds.b $44-(LightDash_RAM_end-LightDash_RAM)-6	; unused
 Saved_data :=			*		; S3 uses a different address
 				ds.b $54		; saved data from 1 player mode
 Ring_status_table		ds.b $400		; 1 word per ring
@@ -1064,7 +1069,10 @@ P1_character :=			*		; S3 uses a different address
 				ds.b 1			; 0 = Sonic, 1 = Tails, 2 = Knuckles
 P2_character :=			*		; S3 uses a different address
 				ds.b 1
-			ds.l 1				; unused
+Cheat_super_music	ds.b 1			; SUPER MUSIC, default ON
+Cheat_super_emeralds	ds.b 1			; ALL SUPER EMERALDS
+Cheats_from_title	ds.b 1			; transient title entry
+Music_playing		ds.b 1			; current underlying BGM (excludes 1-up)
 
 CrossResetRAM_End :=		*		; S3 uses a different address
 

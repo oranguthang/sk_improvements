@@ -17,7 +17,8 @@ The `Feature*` switches in `sonic3k.asm` turn this project's gameplay additions 
 | `FeatureInstantTally` | Holding A/B/C no longer finishes the act bonus count at once. |
 | `FeatureStarPostRings` | Restarting from a Star Post starts with no rings. Returning from a Special Stage or bonus stage still keeps them. |
 | `FeatureSmoothSlots` | The Slots bonus stage rotates in 64 steps again. |
-| `FeatureBlueKnuckles` | The Level Select character number stops at 03. The fixes that keep player modes above 3 working stay in. |
+| `FeatureBlueKnuckles` | Level Select skips Blue Knuckles; Knuckles and Tails remains available. The fixes that keep player modes above 3 working stay in. |
+| `FeatureSuperToggle` | Original single-button Super/Hyper transformation checks, without manual reversion. |
 | `FeatureLightDash` | A in the air always does the normal air move; rings never start a Light Dash. |
 | `FeaturePeelOut` | Up + A/B/C while standing jumps, as in the original game. |
 
@@ -37,7 +38,7 @@ There is no `FeatureVictoryPoses`: Sonic 3 & Knuckles already has it. After the 
 With `FeatureHomingAttack`, a fresh A/B/C press in the air after a jump or an Air Roll (`Sonic_ShieldMoves`) does, in this order:
 
 1. Hyper Sonic: the Hyper Dash, as before.
-2. With all emeralds and 50 rings: the Super transformation, as before.
+2. With `FeatureSuperToggle=0`, the original single-button Super transformation check. The default build uses the separate two-button handler instead; see [form controls](settings.md#super-and-hyper-controls).
 3. Not invincible, with a fire, lightning or bubble shield: that shield's move.
 4. Otherwise, including Super Sonic, invincibility (whose stars hide the shield) and the blue shield: `Sonic_AirDash`. It aims at the nearest badnik or whole monitor ahead of Sonic within 150 pixels on both axes and dashes at speed 8 toward the upper third of its collision box (`Sonic_HomingTargetY`), as in Sonic 1 Improvements. Without a target it is a Jump Dash: speed 8 forward with the vertical speed cleared. Reverse gravity always gives the Jump Dash.
 
@@ -85,6 +86,8 @@ To give another act water, add a `waterlevel` line for it and set its starting h
 With `FeatureExtendedCamera`, `Player_PanCamera` moves `Camera_pan_X` 2 pixels a frame up to 64 pixels from the centre (160) while the player the 1-player camera follows moves at top speed ($600) or charges a Spin Dash, so more of the way ahead is visible, as in Sonic 1 and Sonic 2 Improvements. It holds until the speed drops below $4B0, then eases back, as it also does while an object or cutscene controls the player (`object_control` bit 7). `MoveCameraX` keeps the player `Camera_pan_X`-16 to `Camera_pan_X` pixels from the left edge; a forced scroll position (`Scroll_force_positions`) stays centred. Competition mode and the attract demos do not use it: the demos were recorded with the camera centred, and a panned camera loads objects such as platforms at other times, so the recorded input would no longer fit.
 
 The direction comes from `x_vel` on the ground as well as in the air: `ground_vel` points along the surface and has the opposite sign on a ceiling or in a loop, which panned the old work-in-progress port the wrong way. Level events that read `Camera_X_pos` see the panned camera, so they can start up to 64 pixels earlier or later than in the original game.
+
+AIZ1's height table (`Resize_MaxYFromX`) compensates for that pan when following the player: the table also sets the death plane, and looking left in the lower passage beside the giant ring must not select the shallower section. Locked and forced scroll positions keep their original bounds.
 
 ## Quality-of-life details
 

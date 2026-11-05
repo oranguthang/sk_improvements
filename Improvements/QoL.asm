@@ -107,8 +107,6 @@ LevelSelect_SpecialStageLR:
 .set:
 		move.b	d0,(Current_special_stage).w
 		bsr.s	LevelSelect_SpecialStageNumber
-		moveq	#signextendB(sfx_Switch),d0
-		jsr	(Play_SFX).l
 		move	#0,ccr				; Z=0
 		rts
 ; ---------------------------------------------------------------------------

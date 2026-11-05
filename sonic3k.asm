@@ -60,6 +60,8 @@ FeatureBlueKnuckles = 1
 FeatureHomingAttack = 1
 ;	| A/B/C in the air: Sonic's Homing Attack, or Jump Dash without a target,
 ;	| instead of the Insta-Shield; elemental shields keep their own moves
+FeatureSuperToggle = 1
+;	| A+B/A+C/B+C transforms and reverts every player character in a jump
 FeatureExtendedCamera = 1
 ;	| Let the camera look ahead of the player at speed and while charging a Spin Dash
 FeatureExtraLives = 1
@@ -81,7 +83,7 @@ FeatureInfiniteLives = 0
 FeatureCDDrowning = 0
 ;	| If 1, low air beeps every second as in Sonic CD instead of playing the countdown music
 
-	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureExtendedCamera|FeatureExtraLives|FeatureInvincibilityFlash|FeatureFastSoundTest|FeatureSpecialStageSelect|FeatureLightDash|FeaturePeelOut|FeatureInfiniteLives|FeatureCDDrowning)&~1
+	if (FeatureRollJumpSteering|FeatureAirRoll|FeatureInstantTally|FeatureStarPostRings|FeatureSmoothSlots|FeatureBlueKnuckles|FeatureHomingAttack|FeatureSuperToggle|FeatureExtendedCamera|FeatureExtraLives|FeatureInvincibilityFlash|FeatureFastSoundTest|FeatureSpecialStageSelect|FeatureLightDash|FeaturePeelOut|FeatureInfiniteLives|FeatureCDDrowning)&~1
 		error "Feature options must be 0 or 1"
 	endif
 
@@ -1003,9 +1005,9 @@ VInt_1A:
 ; ---------------------------------------------------------------------------
 
 VInt_1C:
-		bsr.w	Rotate_SSPal
+		jsr	(Rotate_SSPal).l
 		bsr.w	Do_ControllerPal
-		bsr.w	Update_SSMap
+		jsr	(Update_SSMap).l
 		tst.w	(Demo_timer).w
 		beq.w	+
 		subq.w	#1,(Demo_timer).w
@@ -1623,6 +1625,7 @@ Z80_DefaultVariables_end:
 
 
 Play_Music:
+		jsr	(Music_Track).l
 		stopZ80
 		move.b	d0,(Z80_RAM+zMusicNumber).l
 		startZ80
@@ -1645,6 +1648,7 @@ Play_SFX_Local:
 
 
 Play_SFX:
+		jsr	(Music_Track).l
 		stopZ80
 		cmp.b	(Z80_RAM+zSFXNumber0).l,d0
 		beq.s	++
@@ -1708,7 +1712,7 @@ Pause_Loop:
 		beq.s	Pause_NoSlowMo
 		btst	#button_A,(Ctrl_1_pressed).w
 		beq.s	Pause_ChkFrameAdvance	; branch if A isn't pressed
-		move.b	#GameMode_LevelSelect,(Game_mode).w	; back to the Level Select, as in s2_improvements
+		move.b	#GameMode_TitleScreen,(Game_mode).w	; Pause+A returns to the title
 		bra.s	Pause_ResumeMusic
 ; ---------------------------------------------------------------------------
 
@@ -5568,6 +5572,11 @@ loc_4264:
 ; ---------------------------------------------------------------------------
 
 loc_4270:
+		clr.b	(Cheats_from_title).w
+		cmpi.b	#2,(Title_screen_option).w
+		beq.s	.levelSelect
+		move.b	#1,(Cheats_from_title).w
+.levelSelect:
 		move.b	#GameMode_LevelSelect,(Game_mode).w		; Game Mode 28 is the level select
 		rts
 ; ---------------------------------------------------------------------------
@@ -6074,8 +6083,17 @@ Obj_TitleSelection:
 		move.w	#$140,y_pos(a0)
 		move.l	#Map_TitleScreenText,mappings(a0)
 		move.w	#make_art_tile(ArtTile_Title_Menu,2,1),art_tile(a0)	; Start at $D000 VRAM
+		andi.b	#3,(Title_screen_option).w
+		tst.b	(Level_select_flag).w
+		bne.s	.unlocked
 		andi.b	#1,(Title_screen_option).w
-		move.b	(Title_screen_option).w,mapping_frame(a0)
+.unlocked:
+		move.b	(Title_screen_option).w,d0
+		cmpi.b	#3,d0
+		bne.s	.setFrame
+		moveq	#4,d0
+.setFrame:
+		move.b	d0,mapping_frame(a0)
 		move.l	#Obj_TitleSelection_Main,(a0)
 
 Obj_TitleSelection_Main:
@@ -6088,8 +6106,8 @@ Obj_TitleSelection_Main:
 		beq.s	loc_4AAE
 		subq.b	#1,d2
 		bcc.s	loc_4AAE
-		move.b	#2,d2
-		tst.b	(Level_select_flag).w		; If level select is on, maximum choices are 3
+		move.b	#3,d2
+		tst.b	(Level_select_flag).w		; If level select is on, maximum choices are 4
 		bne.s	loc_4AAE
 		move.b	#1,d2
 
@@ -6102,13 +6120,18 @@ loc_4AAE:
 		andi.b	#1,d2
 
 loc_4AC0:
-		cmpi.b	#3,d2
+		cmpi.b	#4,d2
 		blo.s	loc_4AC8
 		moveq	#0,d2
 
 loc_4AC8:
-		move.b	d2,mapping_frame(a0)
 		move.b	d2,(Title_screen_option).w
+		move.w	d2,d1
+		cmpi.b	#3,d1
+		bne.s	.frameReady
+		moveq	#4,d1
+.frameReady:
+		move.b	d1,mapping_frame(a0)
 		andi.b	#3,d0
 		beq.s	loc_4ADE
 		moveq	#signextendB(sfx_Switch),d0
@@ -7810,6 +7833,10 @@ LevelLoop:
 		jsr	(Process_Sprites).l
 		tst.w	(Restart_level_flag).w
 		bne.w	Level
+		tst.b	(Knuckles_partner_pending).w
+		beq.s	.noPartnerPending
+		jsr	(SpawnKnucklesPartner).l
+.noPartnerPending:
 		jsr	(DeformBgLayer).l
 		jsr	(ScreenEvents).l
 		bsr.w	Handle_Onscreen_Water_Height
@@ -8002,11 +8029,12 @@ LevelLoad_ActiveCharacter:
 		beq.s	loc_67CC
 		tst.w	(Competition_mode).w
 		bne.s	loc_67CC
-		move.w	(Player_option).w,(Player_mode).w		; Move selected character to active character
+		jsr	(ApplyPlayerOption).l		; Move selected character to active character
 		rts
 ; ---------------------------------------------------------------------------
 
 loc_67CC:
+		clr.b	(Knuckles_Tails_flag).w		; demos and Competition set their own players
 		move.w	#3,(Player_mode).w			; If loading a demo OR 2P mode enabled (?)
 		cmpi.b	#7,(Current_zone).w
 		beq.s	locret_67EC
@@ -8248,6 +8276,7 @@ locret_6A74:
 
 
 SpawnLevelMainSprites_SpawnPlayers:
+		clr.b	(Knuckles_partner_pending).w
 		cmpi.w	#$1300,(Current_zone_and_act).w
 		blo.s	loc_6A8A
 		cmpi.w	#$1600,(Current_zone_and_act).w
@@ -8308,6 +8337,10 @@ loc_6B42:
 loc_6B64:
 		move.l	#Obj_Knuckles,(Player_1).w
 		move.l	#Obj_DashDust,(Dust).w
+		tst.b	(Knuckles_Tails_flag).w
+		beq.s	.noPartner
+		st	(Knuckles_partner_pending).w
+.noPartner:
 		rts
 ; ---------------------------------------------------------------------------
 
@@ -9996,16 +10029,6 @@ LevelSelect_S2Options:
 
 		restore
 
-		; Add the CHEATS item below the sound test
-		lea	(LevelSelect_CheatsItemText).l,a1
-		lea	(RAM_start+planeLocH28($16,$19)).l,a2
-		moveq	#LevelSelect_CheatsItemText_End-LevelSelect_CheatsItemText-1,d1
-
-	.cheatstext:
-		moveq	#0,d0
-		move.b	(a1)+,d0
-		move.w	d0,(a2)+
-		dbf	d1,.cheatstext
 
 	if FeatureSpecialStageSelect
 		jsr	(LevelSelect_SpecialStageNumber).l
@@ -10070,11 +10093,22 @@ loc_7BE4:
 	endif
 		clr.w	(Level_select_cheat_counter).w
 		clr.w	(Debug_mode_cheat_counter).w
+		move.w	#palette_line_3,d3
+		jsr	(LevelSelect_DrawCharacterName).l
 		move.b	#VInt_ID_16,(V_int_routine).w
 		bsr.w	Wait_VSync
 		move.w	(VDP_reg_1_command).w,d0
 		ori.b	#$40,d0
 		move.w	d0,(VDP_control_port).l
+		; Finish the requested page before its first visible fade-in.
+		tst.b	(Cheats_from_title).w
+		beq.s	LevelSelect_FadeIn
+		clr.b	(Cheats_from_title).w
+		jsr	(LevelSelect_Cheats).l
+		move.b	#GameMode_TitleScreen,(Game_mode).w
+		rts
+
+LevelSelect_FadeIn:
 		bsr.w	Pal_FadeFromBlack
 
 LevelSelect_Main:	; routine running during level select
@@ -10107,13 +10141,11 @@ LevelSelect_PressStart:
 		move.w	#1,(Player_option).w
 
 loc_7CA0:
-		move.w	(Player_option).w,(Player_mode).w
+		jsr	(ApplyPlayerOption).l
 		lea	LS_Level_Order(pc),a1
 		move.w	(Level_select_option).w,d0
 		add.w	d0,d0
 		move.w	(a1,d0.w),d0
-		cmpi.w	#$FFFE,d0		; CHEATS?
-		beq.w	LevelSelect_OpenCheats
 		bmi.w	LevelSelect_Return	; sound test
 		cmpi.w	#$5555,d0		; This was used in Sonic 3 for the S&K zones
 		beq.w	LevelSelect_Main	; If entry is $5555, don't do anything
@@ -10195,17 +10227,11 @@ LS_Level_Order:
 		dc.w $4000	; Special Stage 1
 		dc.w $4001	; Special Stage 2
 		dc.w $FFFF	; Sound Test
-		dc.w $FFFE	; CHEATS
 ; ---------------------------------------------------------------------------
 
 LevelSelect_Return:
 		move.b	#GameMode_SegaScreen,(Game_mode).w
 		rts
-; ---------------------------------------------------------------------------
-
-LevelSelect_OpenCheats:
-		jsr	(LevelSelect_Cheats).l
-		bra.w	LevelSelect_Main
 ; ---------------------------------------------------------------------------
 
 LevelSelect_CheckKnuckles:
@@ -10310,14 +10336,14 @@ loc_7E74:
 		beq.s	loc_7E94
 		subq.w	#1,d0		; decrease by 1
 		bcc.s	loc_7E94	; >= 0?
-		moveq	#$21,d0		; set to $21, CHEATS
+		moveq	#$20,d0		; last entry: sound test
 
 loc_7E94:
 		btst	#button_down,d1
 		beq.s	loc_7EA4
 		addq.w	#1,d0		; yes, add 1
-		cmpi.w	#$22,d0
-		blo.s	loc_7EA4	; smaller than $22?
+		cmpi.w	#$21,d0
+		blo.s	loc_7EA4	; smaller than $21?
 		moveq	#0,d0		; if not, set to 0
 
 loc_7EA4:
@@ -10411,8 +10437,8 @@ LevelSelect_SwitchTable:
 		dc.b $1F	; 13
 		dc.b $20	; 14
 		dc.b $20	; 15
-		dc.b $21	; 16
-		dc.b $21	; 17
+		dc.b $20	; 16
+		dc.b $20	; 17
 		dc.b 0		; 18
 		dc.b 1		; 19
 		dc.b 2		; 20
@@ -10428,22 +10454,22 @@ LevelSelect_SwitchTable:
 		dc.b $C		; 30
 		dc.b $D		; 31
 		dc.b $E		; 32
-		dc.b $10	; 33 (CHEATS)
-		dc.b $10	; 34
-		dc.b $11	; 35
+		even
 ; ---------------------------------------------------------------------------
 
 LevelSelect_PickCharacterNumber:
 		btst	#button_C,(Ctrl_1_pressed).w
 		beq.s	locret_7F60
 		addq.w	#1,(Player_option).w
-	if FeatureBlueKnuckles
-		cmpi.w	#5,(Player_option).w	; Blue Knuckles fix: player mode 4 is selectable
-	else
+	if FeatureBlueKnuckles=0
 		cmpi.w	#4,(Player_option).w
+		bne.s	.noBlue
+		addq.w	#1,(Player_option).w
+.noBlue:
 	endif
+		cmpi.w	#6,(Player_option).w
 		blo.s	locret_7F60
-		move.w	#0,(Player_option).w
+		clr.w	(Player_option).w
 
 locret_7F60:
 		rts
@@ -10515,9 +10541,7 @@ loc_7FF6:
 ; ---------------------------------------------------------------------------
 
 LevelSelect_DrawCharacterNumber:
-		move.l	#vdpComm(VRAM_Plane_A_Name_Table+$19C,VRAM,WRITE),(VDP_control_port).l
-		move.w	(Player_option).w,d0
-		bra.s	LevelSelect_DrawContinued
+		jmp	(LevelSelect_DrawCharacterName).l
 ; End of function LevelSelect_MarkFields
 
 
@@ -10586,7 +10610,6 @@ LevSel_MarkTable:	; 4 bytes per level select entry
 		dc.b  $13, $2C, $13, $4A
 		dc.b  $13, $2C, $14, $4A
 		dc.b  $16, $2C, $16, $4A
-		dc.b  $19, $2C,   0,   0	; CHEATS (no act number)
 LevSel_MappingOffsets:
 		dc.w planeLocH28(3,1)
 		dc.w planeLocH28(3,4)
@@ -15904,6 +15927,8 @@ Write_SaveGame:
 		include "Improvements/RingLoss.asm"
 		include "Improvements/LightDash.asm"
 		include "Improvements/PeelOut.asm"
+		include "Improvements/PlayerOptions.asm"
+		include "Improvements/SuperToggle.asm"
 
 ; ---------------------------------------------------------------------------
 SaveGame_NextLevel:
@@ -16432,6 +16457,10 @@ loc_C994:
 		moveq	#0,d0
 
 loc_C99A:
+		cmpi.w	#5,d0			; Knuckles and Tails uses Knuckles' stats icons
+		bne.s	.statsRow
+		moveq	#3,d0
+.statsRow:
 		lsl.w	#5,d0
 		movea.l	a2,a1
 		adda.w	d0,a1
@@ -16849,7 +16878,7 @@ locret_D30A:
 Obj_SaveScreen_NoSave_Slot:
 		move.b	#$F,sub2_mapframe(a0)
 		move.w	(Dataselect_nosave_player).w,d0
-		addq.w	#4,d0
+		jsr	(SaveMenu_CharacterFrame).l
 		move.b	d0,mapping_frame(a0)
 		tst.b	(Dataselect_entry).w
 		bne.s	loc_D396
@@ -16879,7 +16908,7 @@ loc_D376:
 		move.w	(Dataselect_nosave_player).w,d0
 		jsr	sub_D6D0(pc)
 		move.w	d0,(Dataselect_nosave_player).w
-		addq.w	#4,d0
+		jsr	(SaveMenu_CharacterFrame).l
 		move.b	d0,mapping_frame(a0)
 		move.w	#1,mainspr_childsprites(a0)
 		btst	#4,(Level_frame_counter+1).w
@@ -16946,7 +16975,7 @@ loc_D42C:
 
 loc_D44A:
 		move.w	$34(a0),d0
-		addq.w	#4,d0
+		jsr	(SaveMenu_CharacterFrame).l
 		move.b	d0,mapping_frame(a0)
 		bra.w	Set_ChildSprites
 ; ---------------------------------------------------------------------------
@@ -16997,7 +17026,7 @@ loc_D4B6:
 loc_D4D0:
 		moveq	#$B,d6
 		cmpi.w	#3,$34(a0)
-		beq.s	loc_D4EE
+		bhs.s	loc_D4EE
 		moveq	#$C,d6
 		cmpi.w	#2,$34(a0)
 		beq.s	loc_D4EE
@@ -17137,7 +17166,7 @@ loc_D67A:
 		move.w	$34(a0),d0
 		jsr	sub_D6D0(pc)
 		move.w	d0,$34(a0)
-		addq.w	#4,d0
+		jsr	(SaveMenu_CharacterFrame).l
 		move.b	d0,mapping_frame(a0)
 		move.w	#1,mainspr_childsprites(a0)
 		btst	#4,(Level_frame_counter+1).w
@@ -17172,7 +17201,11 @@ sub_D6D0:
 		bcc.s	loc_D6EE
 		moveq	#signextendB(sfx_Switch),d2
 		addq.w	#1,d0
-		cmpi.w	#3,d0
+		cmpi.w	#4,d0
+		bne.s	.notBlueUp
+		addq.w	#1,d0
+.notBlueUp:
+		cmpi.w	#5,d0
 		bls.s	loc_D6FA
 		moveq	#0,d0
 		bra.s	loc_D6FA
@@ -17183,8 +17216,13 @@ loc_D6EE:
 		bcc.s	loc_D6FA
 		moveq	#signextendB(sfx_Switch),d2
 		subq.w	#1,d0
-		bpl.s	loc_D6FA
-		moveq	#3,d0
+		bmi.s	.wrapDown
+		cmpi.w	#4,d0
+		bne.s	loc_D6FA
+		subq.w	#1,d0
+		bra.s	loc_D6FA
+.wrapDown:
+		moveq	#5,d0
 
 loc_D6FA:
 		tst.w	d2
@@ -17445,7 +17483,7 @@ Load_Icon_Art:
 		beq.s	loc_D9C8
 		moveq	#$E,d1
 		cmpi.w	#3,$34(a0)
-		beq.s	loc_D992
+		bhs.s	loc_D992
 		addq.w	#2,d1
 
 loc_D992:
@@ -17802,7 +17840,7 @@ loc_DD64:
 		lea	(Timer).w,a1
 		cmpi.l	#(9<<16)|(59<<8)|59,(a1)+
 		bne.s	.counting
-		jsr	(Cheat_GodMode).l		; GOD MODE: the clock stops at 9:59
+		jsr	(Cheat_GodModeActive).l		; the one-player HUD clock
 		bne.w	loc_DDBE
 		bra.w	UpdateHUD_TimeOver
 ; ---------------------------------------------------------------------------
@@ -21048,6 +21086,10 @@ Touch_Enemy:
 		move.w	a0,d0				; Save value of RAM address of which player hit the boss:
 		move.b	d0,$1C(a1)			; ($FFFFB000) for main character, ($FFFFB04A) for sidekick
 		move.b	#0,collision_flags(a1)
+		jsr	(Cheat_GodModePlayer).l
+		beq.s	.normalBossHit
+		move.b	#1,boss_hitcount2(a1)
+	.normalBossHit:
 		subq.b	#1,boss_hitcount2(a1)		; Subtract from boss hit counter
 		bne.s	.bossnotdefeated		; If boss is not defeated yet, branch
 		bset	#7,status(a1)
@@ -21200,7 +21242,7 @@ Touch_Hurt:
 
 
 HurtCharacter:
-		jsr	(Cheat_GodMode).l		; GOD MODE: nothing hurts the players
+		jsr	(Cheat_GodModePlayer).l		; Competition protects only P1
 		beq.s	.hurt
 		moveq	#-1,d0
 		rts
@@ -21284,7 +21326,12 @@ loc_10364:
 ; ---------------------------------------------------------------------------
 
 Kill_Character:
-		jsr	(Cheat_GodMode).l		; GOD MODE: no deaths
+		cmpa.w	#Player_1,a0
+		bne.s	.checkGod
+		tst.w	(Debug_placement_mode).w
+		bne.s	loc_103B6
+.checkGod:
+		jsr	(Cheat_GodModePlayer).l		; protect physical P1 only
 		bne.w	Cheat_GodRescue			; a pit bounces the player back up instead
 	if FeatureLightDash
 		jsr	(LightDash_PlayerHit).l		; a death ends the Light Dash
@@ -21292,8 +21339,6 @@ Kill_Character:
 	if FeaturePeelOut
 		jsr	(PeelOut_Cancel).l		; and a Peel-Out charge
 	endif
-		tst.w	(Debug_placement_mode).w
-		bne.s	loc_103B6
 		moveq	#signextendB(sfx_Death),d0
 
 loc_1036E:
@@ -21308,7 +21353,10 @@ loc_1036E:
 		move.w	#0,x_vel(a0)
 		move.w	#0,ground_vel(a0)
 		move.b	#$18,anim(a0)
+		cmpa.w	#Player_1,a0
+		bne.s	.priority
 		move.w	art_tile(a0),(Debug_saved_art_tile).w
+.priority:
 		bset	#7,art_tile(a0)
 		jsr	(Play_SFX).l
 
@@ -21687,7 +21735,7 @@ loc_10740:
 		beq.s	loc_10760
 		cmpa.w	#Player_1,a0
 		bne.s	loc_10760
-		btst	#button_B,(Ctrl_1_pressed).w
+		jsr	(Player_DebugButton).l
 		beq.s	loc_10760
 		move.w	#1,(Debug_placement_mode).w
 		clr.b	(Ctrl_1_locked).w
@@ -22022,7 +22070,7 @@ Obj_Sonic:
 		cmpi.b	#1,(Debug_placement_type).w	; Is Sonic in debug object placement mode?
 		beq.s	JmpTo_DebugMode			; If so, skip to debug mode routine
 		; By this point, we're assuming you're in frame cycling mode
-		btst	#button_B,(Ctrl_1_pressed).w
+		jsr	(Player_DebugButton).l
 		beq.s	loc_10ABC
 		move.w	#0,(Debug_placement_mode).w	; Leave debug mode
 
@@ -22105,12 +22153,9 @@ Sonic_Init_Continued:
 Sonic_Control:	; Routine 2
 		tst.w	(Debug_mode_flag).w		; is debug cheat enabled?
 		beq.s	loc_10BF0			; if not, branch
-		bclr	#button_A,(Ctrl_1_pressed).w	; is button A pressed?
-		beq.s	loc_10BCE			; if not, branch
-		eori.b	#1,(Reverse_gravity_flag).w	; toggle reverse gravity
 
 loc_10BCE:
-		btst	#button_B,(Ctrl_1_pressed).w	; is button B pressed?
+		jsr	(Player_DebugButton).l	; is button B pressed?
 		beq.s	loc_10BF0			; if not, branch
 		move.w	#1,(Debug_placement_mode).w	; change Sonic into a ring/item
 		clr.b	(Ctrl_1_locked).w		; unlock control
@@ -22135,6 +22180,8 @@ loc_10BFC:
 ; ---------------------------------------------------------------------------
 
 loc_10C0C:
+		jsr	(Player_SuperCombo).l
+		bne.w	loc_10C26
 	if FeatureLightDash
 		jsr	(Player_LightDashFrame).l	; dashing along a ring chain replaces the mode
 		bne.s	loc_10C26
@@ -22228,7 +22275,7 @@ Sonic_ChkInvin:	; Checks if invincibility has expired and disables it if it has.
 		blo.s	Sonic_RmvInvin
 	endif
 		move.w	(Current_music).w,d0
-		jsr	(Play_Music).l		; stop playing invincibility theme and resume normal level music
+		jsr	(Play_Music_IfChanged).l		; stop playing invincibility theme and resume normal level music
 
 Sonic_RmvInvin:
 		bclr	#Status_Invincible,status_secondary(a0)
@@ -23837,6 +23884,9 @@ Sonic_BubbleShield:
 ; ---------------------------------------------------------------------------
 
 Sonic_CheckTransform:
+	if FeatureSuperToggle
+		bra.w	Sonic_InstaShield		; Super/Hyper is controlled by Player_SuperCombo
+	endif
 		jsr	(Cheat_CmpSuperEmeralds).l	; does Sonic have all 7 Super Emeralds?
 		bhs.s	loc_119E8			; if yes, branch
 		jsr	(Cheat_CmpChaosEmeralds).l	; does Sonic have all 7 Chaos Emeralds?
@@ -24040,8 +24090,7 @@ Sonic_Transform:
 		bset	#Status_Invincible,status_secondary(a0)
 		moveq	#signextendB(sfx_SuperTransform),d0
 		jsr	(Play_SFX).l
-		moveq	#signextendB(mus_Invincibility),d0		; play invincibility theme
-		jmp	(Play_Music).l
+		jmp	(Play_SuperMusic).l
 ; ---------------------------------------------------------------------------
 
 Sonic_HyperDash:
@@ -24144,6 +24193,7 @@ SonicKnux_SuperHyper:
 		; If rings depleted, return to normal
 
 	.revertToNormal:
+		jsr	(Super_RecoverMusic).l
 		move.b	#2,(Super_palette_status).w
 		move.w	#$1E,(Palette_frame).w
 		move.b	#0,(Super_Sonic_Knux_flag).w
@@ -24993,7 +25043,7 @@ loc_122AA:
 loc_122BE:
 		tst.w	(Debug_mode_flag).w
 		beq.s	loc_122D8
-		btst	#button_B,(Ctrl_1_pressed).w
+		jsr	(Player_DebugButton).l
 		beq.s	loc_122D8
 		move.w	#1,(Debug_placement_mode).w
 		clr.b	(Ctrl_1_locked).w
@@ -25072,7 +25122,7 @@ loc_1238A:
 loc_12390:
 		tst.w	(Debug_mode_flag).w
 		beq.s	loc_123AA
-		btst	#button_B,(Ctrl_1_pressed).w
+		jsr	(Player_DebugButton).l
 		beq.s	loc_123AA
 		move.w	#1,(Debug_placement_mode).w
 		clr.b	(Ctrl_1_locked).w
@@ -25250,7 +25300,7 @@ loc_125A2:
 loc_125AC:
 		tst.w	(Debug_mode_flag).w
 		beq.s	loc_125C6
-		btst	#button_B,(Ctrl_1_pressed).w
+		jsr	(Player_DebugButton).l
 		beq.s	loc_125C6
 		move.w	#1,(Debug_placement_mode).w
 		clr.b	(Ctrl_1_locked).w
@@ -26229,7 +26279,7 @@ loc_13274:
 		beq.s	loc_13294
 		cmpa.w	#Player_1,a0
 		bne.s	loc_13294
-		btst	#button_B,(Ctrl_1_pressed).w
+		jsr	(Player_DebugButton).l
 		beq.s	loc_13294
 		move.w	#1,(Debug_placement_mode).w
 		clr.b	(Ctrl_1_locked).w
@@ -26621,7 +26671,7 @@ Obj_Tails:
 		beq.s	Tails_Normal
 		cmpi.b	#1,(Debug_placement_type).w
 		beq.s	loc_136A8
-		btst	#button_B,(Ctrl_1_pressed).w
+		jsr	(Player_DebugButton).l
 		beq.s	loc_1368C
 		move.w	#0,(Debug_placement_mode).w
 
@@ -26719,12 +26769,9 @@ Tails_Control:
 		bne.s	loc_13808
 		tst.w	(Debug_mode_flag).w
 		beq.s	loc_13808
-		bclr	#button_A,(Ctrl_1_pressed).w
-		beq.s	loc_137E0
-		eori.b	#1,(Reverse_gravity_flag).w
 
 loc_137E0:
-		btst	#button_B,(Ctrl_1_pressed).w
+		jsr	(Player_DebugButton).l
 		beq.s	loc_13808
 		move.w	#1,(Debug_placement_mode).w
 		clr.b	(Ctrl_1_locked).w
@@ -26779,6 +26826,8 @@ loc_1384A:
 ; ---------------------------------------------------------------------------
 
 loc_13872:
+		jsr	(Player_SuperCombo).l
+		bne.w	loc_1388C
 	if FeatureLightDash
 		jsr	(Player_LightDashFrame).l	; dashing along a ring chain replaces the mode
 		bne.s	loc_1388C
@@ -26869,7 +26918,7 @@ loc_13912:
 		blo.s	loc_13948
 	endif
 		move.w	(Current_music).w,d0
-		jsr	(Play_Music).l
+		jsr	(Play_Music_IfChanged).l
 
 loc_13948:
 		bclr	#Status_Invincible,status_secondary(a0)
@@ -26926,8 +26975,24 @@ Tails_CPU_Control:
 		beq.s	loc_139DC
 		move.w	#10*60,(Tails_CPU_idle_timer).w
 
+Tails_CPU_EscapeWater = $24
+
 loc_139DC:
 		lea	(Player_1).w,a1
+		cmpa.w	#Player_2,a0
+		bne.s	.dispatch
+		cmpi.b	#$17,anim(a1)			; drowning
+		bne.s	.dispatch
+		cmpi.b	#6,routine(a1)
+		blo.s	.dispatch
+		tst.w	(Tails_CPU_idle_timer).w	; controller 2 has priority
+		bne.s	.dispatch
+		cmpi.w	#2,(Tails_CPU_routine).w	; leave an offscreen respawn alone
+		beq.s	.dispatch
+		btst	#Status_Underwater,status(a0)
+		beq.s	.dispatch
+		move.w	#Tails_CPU_EscapeWater,(Tails_CPU_routine).w
+.dispatch:
 		move.w	(Tails_CPU_routine).w,d0
 		move.w	Tails_CPU_Control_Index(pc,d0.w),d0
 		jmp	Tails_CPU_Control_Index(pc,d0.w)
@@ -26953,9 +27018,12 @@ Tails_CPU_Control_Index:
 		dc.w loc_14254-Tails_CPU_Control_Index
 		dc.w loc_1425C-Tails_CPU_Control_Index
 		dc.w loc_14286-Tails_CPU_Control_Index
+		dc.w Tails_EscapeDrowning-Tails_CPU_Control_Index
 ; ---------------------------------------------------------------------------
 
 loc_13A10:
+		tst.b	(Knuckles_Tails_flag).w		; fly in without a Sonic-route entrance
+		bne.w	sub_13ECA
 		tst.b	(Tails_CPU_star_post_flag).w
 		bne.w	loc_13AF4
 		cmpi.w	#0,(Current_zone_and_act).w
@@ -27100,6 +27168,56 @@ locret_13BF6:
 		rts
 ; ---------------------------------------------------------------------------
 
+; Keep moving beyond the surface until the sprite has left the screen.
+Tails_EscapeDrowning:
+		tst.w	(Tails_CPU_idle_timer).w
+		bne.w	.release
+		cmpi.b	#$17,anim(a1)
+		bne.w	.release
+		cmpi.b	#6,routine(a1)
+		blo.w	.release
+		clr.w	(Ctrl_2_logical).w
+		clr.b	(Flying_carrying_Sonic_flag).w
+		clr.w	x_vel(a0)
+		clr.w	ground_vel(a0)
+		bclr	#Status_Roll,status(a0)
+		bset	#Status_InAir,status(a0)
+		move.b	default_y_radius(a0),y_radius(a0)
+		move.b	default_x_radius(a0),x_radius(a0)
+		move.b	#$81,object_control(a0)
+		move.b	#1,double_jump_property(a0)
+		btst	#Status_Underwater,status(a0)
+		beq.s	.air
+		move.w	#-$180,y_vel(a0)
+		bra.s	.move
+
+.air:
+		move.w	y_pos(a0),d0
+		sub.w	(Camera_Y_pos).w,d0
+		cmpi.w	#-$20,d0
+		ble.s	.offscreen
+		move.w	#-$200,y_vel(a0)
+.move:
+		bsr.w	Tails_Set_Flying_Animation
+		jsr	(MoveSprite2).l
+		movem.l	a4-a6,-(sp)
+		bsr.w	Tails_DoLevelCollision
+		movem.l	(sp)+,a4-a6
+		rts
+
+.offscreen:
+		clr.w	y_vel(a0)
+		rts
+
+.release:
+		move.w	#6,(Tails_CPU_routine).w
+		clr.b	object_control(a0)
+		clr.w	y_vel(a0)
+		clr.b	double_jump_flag(a0)
+		clr.b	double_jump_property(a0)
+		rts
+; ---------------------------------------------------------------------------
+
 Tails_FlySwim_Unknown:
 		tst.b	render_flags(a0)
 		bmi.s	loc_13C3A
@@ -27235,6 +27353,11 @@ loc_13D42:
 loc_13D4A:
 		cmpi.b	#6,(Player_1+routine).w
 		blo.s	loc_13D78
+		cmpi.b	#$17,anim(a1)
+		bne.s	.follow
+		tst.w	(Tails_CPU_idle_timer).w
+		bne.s	loc_13D78			; keep player 2's control during drowning
+.follow:
 		move.w	#4,(Tails_CPU_routine).w
 		move.b	#0,spin_dash_flag(a0)
 		move.w	#0,spin_dash_counter(a0)
@@ -27361,6 +27484,7 @@ loc_13E9C:
 		move.b	#1,(Tails_CPU_auto_jump_flag).w
 
 loc_13EB8:
+		jsr	(Tails_FollowBombingRun).l
 		move.w	d1,(Ctrl_2_logical).w
 		rts
 ; ---------------------------------------------------------------------------
@@ -27892,6 +28016,10 @@ loc_144BA:
 		move.b	AniRaw_Tails_Carry(pc),d0
 
 loc_144E4:
+		cmpi.b	#2,character_id(a1)
+		bne.s	.carryFrame
+		moveq	#signextendB($91),d0	; Knuckles' native hanging pose
+.carryFrame:
 		move.b	d0,mapping_frame(a1)
 		moveq	#0,d0
 		move.b	mapping_frame(a1),d0
@@ -27967,6 +28095,10 @@ sub_1459E:
 		move.w	y_pos(a0),y_pos(a1)
 		addi.w	#$1C,y_pos(a1)
 		move.w	#$22<<8,anim(a1)	; and prev_anim
+		cmpi.b	#2,character_id(a1)
+		bne.s	.carryAnimation
+		move.w	#$14<<8,anim(a1)	; Knuckles hangs instead of Sonic's carry cycle
+.carryAnimation:
 		move.b	#0,anim_frame_timer(a1)
 		move.b	#0,anim_frame(a1)
 		move.b	#3,object_control(a1)
@@ -28160,7 +28292,10 @@ Tails_FlyingSwimming:
 		bsr.w	Tails_DoLevelCollision
 		movem.l	(sp)+,a4-a6
 		tst.w	(Player_mode).w
-		bne.s	locret_14820
+		beq.s	.carryPartner
+		tst.b	(Knuckles_Tails_flag).w
+		beq.s	locret_14820
+.carryPartner:
 		lea	(Flying_carrying_Sonic_flag).w,a2
 		lea	(Player_1).w,a1
 		move.w	(Ctrl_1).w,d0
@@ -29240,6 +29375,9 @@ Tails_Test_For_Flight:
 		beq.w	locret_151A2
 		cmpi.w	#2,(Player_mode).w
 		bne.s	loc_15156
+	if FeatureSuperToggle
+		bra.s	loc_1515C		; a single press flies
+	else
 		tst.b	(Super_Tails_flag).w
 		bne.s	loc_1515C
 		jsr	(Cheat_CmpSuperEmeralds).l
@@ -29250,6 +29388,7 @@ Tails_Test_For_Flight:
 		bne.s	Tails_Transform
 		bra.s	loc_1515C
 ; ---------------------------------------------------------------------------
+	endif
 
 loc_15156:
 		tst.w	(Tails_CPU_idle_timer).w
@@ -29288,7 +29427,17 @@ Tails_Transform:
 		move.w	#60,(Super_frame_count).w
 		move.b	#$81,object_control(a0)
 		move.b	#$29,anim(a0)				; enter 'transformation' animation
-		move.l	#Obj_SuperTailsBirds,(Invincibility_stars).w	; load Super Flickies object
+		jsr	(Cheat_CmpSuperEmeralds).l
+		bhs.s	.birds
+		lea	(Invincibility_stars).w,a1
+		moveq	#(object_size*4)/4-1,d0
+.clearStars:
+		clr.l	(a1)+
+		dbf	d0,.clearStars
+		bra.s	.noBirds
+.birds:
+		move.l	#Obj_SuperTailsBirds,(Invincibility_stars).w
+.noBirds:
 		move.w	#$800,Max_speed_P2-Max_speed_P2(a4)
 		move.w	#$18,Acceleration_P2-Max_speed_P2(a4)
 		move.w	#$C0,Deceleration_P2-Max_speed_P2(a4)
@@ -29296,8 +29445,7 @@ Tails_Transform:
 		bset	#Status_Invincible,status_secondary(a0)
 		moveq	#signextendB(sfx_SuperTransform),d0
 		jsr	(Play_SFX).l
-		moveq	#signextendB(mus_Invincibility),d0		; play invincibility theme
-		jmp	(Play_Music).l
+		jmp	(Play_SuperMusic).l
 ; End of function Tails_JumpHeight
 
 
@@ -29795,11 +29943,11 @@ loc_1565E:
 ; ---------------------------------------------------------------------------
 
 loc_1569C:
-		cmpi.w	#2,(Player_mode).w
+		cmpa.w	#Player_1,a0
 		bne.s	loc_156BE
 		tst.w	(Debug_mode_flag).w
 		beq.s	loc_156BE
-		btst	#button_B,(Ctrl_1_pressed).w
+		jsr	(Player_DebugButton).l
 		beq.s	loc_156BE
 		move.w	#1,(Debug_placement_mode).w
 		clr.b	(Ctrl_1_locked).w
@@ -29884,11 +30032,11 @@ loc_15788:
 ; ---------------------------------------------------------------------------
 
 loc_1578E:
-		cmpi.w	#2,(Player_mode).w
+		cmpa.w	#Player_1,a0
 		bne.s	loc_157B0
 		tst.w	(Debug_mode_flag).w
 		beq.s	loc_157B0
-		btst	#button_B,(Ctrl_1_pressed).w
+		jsr	(Player_DebugButton).l
 		beq.s	loc_157B0
 		move.w	#1,(Debug_placement_mode).w
 		clr.b	(Ctrl_1_locked).w
@@ -29935,6 +30083,14 @@ loc_15806:
 ; ---------------------------------------------------------------------------
 
 loc_15810:
+		tst.w	(Debug_mode_flag).w
+		beq.s	.drowning
+		jsr	(Player_DebugButton).l
+		beq.s	.drowning
+		move.w	#1,(Debug_placement_mode).w
+		clr.b	(Ctrl_1_locked).w
+		rts
+.drowning:
 		tst.b	(Flying_carrying_Sonic_flag).w
 		beq.s	loc_15828
 		lea	(Player_1).w,a1
@@ -30934,7 +31090,7 @@ Obj_Knuckles:
 		beq.s	Knuckles_Normal
 		cmpi.b	#1,(Debug_placement_type).w
 		beq.s	loc_16488
-		btst	#button_B,(Ctrl_1_pressed).w
+		jsr	(Player_DebugButton).l
 		beq.s	loc_1646C
 		move.w	#0,(Debug_placement_mode).w
 
@@ -31012,12 +31168,9 @@ Knuckles_Init_Continued:
 Knuckles_Control:
 		tst.w	(Debug_mode_flag).w
 		beq.s	loc_165A2
-		bclr	#button_A,(Ctrl_1_pressed).w
-		beq.s	loc_16580
-		eori.b	#1,(Reverse_gravity_flag).w
 
 loc_16580:
-		btst	#button_B,(Ctrl_1_pressed).w
+		jsr	(Player_DebugButton).l
 		beq.s	loc_165A2
 		move.w	#1,(Debug_placement_mode).w
 		clr.b	(Ctrl_1_locked).w
@@ -31042,6 +31195,8 @@ loc_165AE:
 ; ---------------------------------------------------------------------------
 
 loc_165BE:
+		jsr	(Player_SuperCombo).l
+		bne.w	loc_165D8
 	if FeatureLightDash
 		jsr	(Player_LightDashFrame).l	; dashing along a ring chain replaces the mode
 		bne.s	loc_165D8
@@ -31134,7 +31289,7 @@ loc_1665E:
 		blo.s	loc_16694
 	endif
 		move.w	(Current_music).w,d0
-		jsr	(Play_Music).l
+		jsr	(Play_Music_IfChanged).l
 
 loc_16694:
 		bclr	#Status_Invincible,status_secondary(a0)
@@ -33209,6 +33364,9 @@ Knux_Test_For_Glide:
 		move.b	(Ctrl_1_pressed_logical).w,d0
 		andi.b	#button_A_mask|button_B_mask|button_C_mask,d0
 		beq.w	locret_178CC
+	if FeatureSuperToggle
+		; A single press glides; the shared combo handler transforms.
+	else
 		tst.b	(Super_Sonic_Knux_flag).w
 		bne.s	loc_1786C
 		jsr	(Cheat_CmpSuperEmeralds).l
@@ -33223,6 +33381,7 @@ loc_1785E:
 		blo.s	loc_1786C
 		tst.b	(Update_HUD_timer).w
 		bne.s	Knux_Transform
+	endif
 
 loc_1786C:
 		bclr	#Status_Roll,status(a0)
@@ -33281,8 +33440,7 @@ Knux_Transform:
 		bset	#Status_Invincible,status_secondary(a0)
 		moveq	#signextendB(sfx_SuperTransform),d0
 		jsr	(Play_SFX).l
-		moveq	#signextendB(mus_Invincibility),d0		; play invincibility theme
-		jmp	(Play_Music).l
+		jmp	(Play_SuperMusic).l
 ; End of function Knux_JumpHeight
 
 
@@ -33306,7 +33464,7 @@ loc_17952:
 		beq.w	loc_17A62
 		cmpi.b	#$C0,d0
 		beq.w	loc_17AB0
-		bsr.w	CheckLeftWallDist
+		jsr	(CheckLeftWallDist).l
 		tst.w	d1
 		bpl.s	loc_1799C
 		sub.w	d1,x_pos(a0)
@@ -33340,7 +33498,7 @@ locret_179D8:
 ; ---------------------------------------------------------------------------
 
 loc_179DA:
-		bsr.w	CheckLeftWallDist
+		jsr	(CheckLeftWallDist).l
 		tst.w	d1
 		bpl.s	loc_179F2
 		sub.w	d1,x_pos(a0)
@@ -33540,7 +33698,7 @@ locret_17BB4:
 loc_17BB6:
 		tst.w	(Debug_mode_flag).w
 		beq.s	loc_17BD0
-		btst	#button_B,(Ctrl_1_pressed).w
+		jsr	(Player_DebugButton).l
 		beq.s	loc_17BD0
 		move.w	#1,(Debug_placement_mode).w
 		clr.b	(Ctrl_1_locked).w
@@ -33619,7 +33777,7 @@ loc_17C82:
 loc_17C88:
 		tst.w	(Debug_mode_flag).w
 		beq.s	loc_17CA2
-		btst	#button_B,(Ctrl_1_pressed).w
+		jsr	(Player_DebugButton).l
 		beq.s	loc_17CA2
 		move.w	#1,(Debug_placement_mode).w
 		clr.b	(Ctrl_1_locked).w
@@ -33660,7 +33818,7 @@ loc_17CE0:
 loc_17CEA:
 		tst.w	(Debug_mode_flag).w
 		beq.s	loc_17D04
-		btst	#button_B,(Ctrl_1_pressed).w
+		jsr	(Player_DebugButton).l
 		beq.s	loc_17D04
 		move.w	#1,(Debug_placement_mode).w
 		clr.b	(Ctrl_1_locked).w
@@ -34160,9 +34318,12 @@ AirCountdown_Countdown:
 		bhs.w	locret_18680
 		btst	#Status_BublShield,status_secondary(a2)
 		bne.w	locret_18680
+		cmpa.w	#Player_1,a2			; Super/Hyper status is P1's
+		bne.s	.checkGod
 		tst.b	(Super_Sonic_Knux_flag).w
 		bmi.w	locret_18680
-		jsr	(Cheat_GodMode).l		; GOD MODE: the air never runs out
+.checkGod:
+		jsr	(Cheat_GodModeAir).l		; a2 is the player whose air is ticking
 		beq.s	.breathes
 		move.b	#30,air_left(a2)
 		bra.w	locret_18680
@@ -34233,6 +34394,10 @@ AirCountdown_ReduceAir:
 		bsr.w	Player_TouchFloor
 		move.b	#$17,anim(a0)
 		bset	#Status_InAir,status(a0)
+		cmpa.w	#Player_1,a0
+		bne.s	.priority
+		move.w	art_tile(a0),(Debug_saved_art_tile).w
+.priority:
 		bset	#7,art_tile(a0)
 		move.w	#0,y_vel(a0)
 		move.w	#0,x_vel(a0)
@@ -34360,9 +34525,10 @@ loc_186A0:
 		move.w	#mus_Invincibility,d0	; prepare to play Super Sonic music (same as invincibility in this game)
 
 loc_186AC:
+		jsr	(Super_SelectRecoveryMusic).l
 		tst.b	(Boss_flag).w
 		beq.s	loc_186B6		; branch if not in a boss fight
-		move.w	#mus_MinibossK,d0	; prepare to play boss music
+		jsr	(Super_SelectBaseMusic).l	; restore this boss's own BGM
 
 loc_186B6:
 		jsr	(Play_Music).l
@@ -40347,6 +40513,32 @@ No_Resize:
 
 Resize_MaxYFromX:
 		move.w	(Camera_X_pos).w,d0
+	if FeatureExtendedCamera
+		; AIZ1's height table also sets the death plane. Read it with the
+		; centred camera X, so looking left beside the giant ring cannot
+		; select the shallower section and kill a stationary player.
+		cmpa.w	#Player_1,a0			; forced scroll positions keep their original bounds
+		bne.s	loc_1CAB2
+		tst.b	(Scroll_lock).w
+		bne.s	loc_1CAB2
+		add.w	(Camera_pan_X).w,d0
+		subi.w	#320/2,d0
+		bcc.s	.checkRingRoom
+		moveq	#0,d0				; clamp a leftward look at the level start
+.checkRingRoom:
+		; The west end of the giant-ring room extends left of the height
+		; change even with the camera centred. Use the player's position
+		; to keep the lower limit while passing that wall.
+		cmpi.w	#$1B00,d0
+		bhi.s	loc_1CAB2
+		cmpi.w	#$430,y_pos(a0)
+		blo.s	loc_1CAB2
+		cmpi.w	#$1B90,x_pos(a0)
+		blo.s	loc_1CAB2
+		cmpi.w	#$1C00,x_pos(a0)
+		bhs.s	loc_1CAB2
+		move.w	#$1B01,d0			; select the room's $430 lower limit
+	endif
 
 loc_1CAB2:
 		move.l	(a1)+,d1
@@ -41807,8 +41999,7 @@ Monitor_Give_SuperSonic:
 		bset	#Status_Invincible,status_secondary(a1)
 		moveq	#signextendB(sfx_SuperTransform),d0
 		jsr	(Play_SFX).l
-		moveq	#signextendB(mus_Invincibility),d0		; play invincibility theme
-		jmp	(Play_Music).l
+		jmp	(Play_SuperMusic).l
 ; ---------------------------------------------------------------------------
 		; unused
 		rts
@@ -75621,6 +75812,15 @@ loc_37D7C:
 		tst.b	(a4)
 		beq.s	loc_37DB0
 		bmi.s	loc_37DB0
+		cmpa.w	#Competition_time_record,a5
+		bne.s	.checkRecord
+		cmpi.l	#(9<<16)|(59<<8)|98,(a5)
+		blo.s	.checkRecord
+		jsr	(Cheat_GodModeActive).l
+		beq.s	.checkRecord
+		move.l	#(9<<16)|(59<<8)|98,(a5)	; cap P1 before the race's 9:59.99 sentinel
+		bra.s	loc_37DD0
+.checkRecord:
 		cmpi.l	#(9<<16)|(59<<8)|99,(a5)
 		blo.s	loc_37D96
 		move.b	#$80,(a4)
@@ -75648,6 +75848,14 @@ loc_37DB0:
 		move.l	d6,(a6,d1.w)
 		move.l	$14(a6),d5
 		jsr	sub_36F76(pc)
+		cmpi.l	#(9<<16)|(59<<8)|98,d6
+		blo.s	.storeTime
+		cmpa.w	#Competition_time_record,a5
+		bne.s	.storeTime
+		jsr	(Cheat_GodModeActive).l
+		beq.s	.storeTime
+		move.l	#(9<<16)|(59<<8)|98,d6	; a lap sum can skip past the sentinel
+.storeTime:
 		move.l	d6,(a5)
 
 loc_37DD0:
@@ -101558,7 +101766,7 @@ loc_4D008:
 		bne.s	locret_4D03C
 		move.b	#0,(Special_bonus_entry_flag).w
 		move.b	#1,(Blue_spheres_stage_flag).w
-		move.w	(Player_option).w,(Player_mode).w
+		jsr	(ApplyPlayerOption).l
 		move.b	#3,(Life_count).w
 		move.b	#0,(SK_special_stage_flag).w
 		move.b	#0,(Current_special_stage).w
@@ -132665,6 +132873,12 @@ loc_6429E:
 loc_642BC:
 		move.w	d3,x_vel(a0)
 		move.w	#-$300,y_vel(a0)
+		cmpa.w	#Player_1,a1			; the rival Knuckles fight checks contact itself
+		bne.s	.normalHit
+		jsr	(Cheat_GodModeActive).l
+		beq.s	.normalHit
+		move.b	#1,collision_property(a0)
+.normalHit:
 		subq.b	#1,collision_property(a0)
 		beq.s	loc_64310
 		move.b	#$16,routine(a0)
@@ -146140,7 +146354,7 @@ Obj_CNZMinibossCoil:
 Obj_CNZMinibossCoilClose:
 		movea.w	parent3(a0),a1
 		btst	#7,status(a1)
-		bne.s	loc_6DEB6
+		bne.w	loc_6DEB6
 		btst	#6,$38(a1)
 		bne.s	loc_6DEA8
 		jsr	(Refresh_ChildPosition).l		; If base is not open
@@ -146154,6 +146368,12 @@ Obj_CNZMinibossCoilClose:
 		bne.s	loc_6DE88		; If base has been stunned already, branch
 		move.b	collision_flags(a1),$25(a1)	; Backup parent collision
 		clr.b	collision_flags(a1)		; Unset parent collision
+		cmpi.b	#Player_1&$FF,$1C(a0)	; credit the player who hit the coil
+		bne.s	.normalHit
+		jsr	(Cheat_GodModeActive).l
+		beq.s	.normalHit
+		move.b	#1,collision_property(a1)
+.normalHit:
 		subq.b	#1,collision_property(a1)	; Remove a hit
 
 loc_6DE88:
@@ -148799,7 +149019,7 @@ sub_6F994:
 		beq.s	locret_6F9DC
 		tst.b	$20(a0)
 		bne.s	loc_6F9B6
-		subq.b	#1,collision_property(a0)
+		jsr	(Cheat_StageBossHit).l
 		beq.s	loc_6F9DE
 		move.b	#$20,$20(a0)
 		moveq	#signextendB(sfx_BossHit),d0
@@ -163199,7 +163419,7 @@ sub_79F58:
 		beq.s	locret_79F98
 		tst.b	$20(a0)
 		bne.s	loc_79F7A
-		subq.b	#1,collision_property(a0)
+		jsr	(Cheat_StageBossHit).l
 		beq.s	loc_79F9A
 		move.b	#$20,$20(a0)
 		moveq	#signextendB(sfx_BossHit),d0
@@ -166665,7 +166885,7 @@ loc_7C578:
 		moveq	#signextendB(sfx_MechaLand),d0
 		jsr	(Play_SFX).l
 		lea	byte_7D5B6(pc),a1
-		jsr	Set_Raw_Animation(pc)
+		jsr	(Set_Raw_Animation).l
 		bra.w	loc_7BB7C
 ; ---------------------------------------------------------------------------
 
@@ -166721,7 +166941,7 @@ loc_7C61A:
 
 loc_7C630:
 		jsr	(Run_PalRotationScript).l
-		jsr	Animate_RawMultiDelayFlipX(pc)
+		jsr	(Animate_RawMultiDelayFlipX).l
 		jsr	(Swing_UpAndDown).l
 		jmp	(MoveSprite2).l
 ; ---------------------------------------------------------------------------
@@ -171617,7 +171837,7 @@ sub_7FB92:
 		beq.s	locret_7FBD4
 		tst.b	$20(a0)
 		bne.s	loc_7FBB2
-		subq.b	#1,collision_property(a0)
+		jsr	(Cheat_StageBossHit).l
 		beq.s	loc_7FBD6
 		move.b	#$20,$20(a0)
 		moveq	#signextendB(sfx_BossHit),d0
@@ -176173,8 +176393,9 @@ loc_82B30:
 		moveq	#0,d0
 		move.b	$3D(a0),d0
 		add.w	d0,d0
-		move.w	off_82BBC(pc,d0.w),d1
-		lea	off_82BBC(pc,d1.w),a2
+		lea	off_82BBC(pc),a2
+		move.w	(a2,d0.w),d1
+		adda.w	d1,a2
 		jsr	Check_InMyRange(pc)
 		bne.s	loc_82B6E
 
@@ -176190,6 +176411,10 @@ locret_82B60:
 ; ---------------------------------------------------------------------------
 
 loc_82B62:
+		jsr	(Cheat_GodModeActive).l
+		beq.s	.normalHit
+		move.b	#1,collision_property(a1)
+.normalHit:
 		subq.b	#1,collision_property(a1)
 		st	collision_flags(a1)
 		bra.w	loc_82B78
@@ -176459,6 +176684,10 @@ loc_82DCE:
 		lea	word_82E92(pc),a2
 		jsr	Check_InMyRange(pc)
 		beq.s	locret_82E2A
+		jsr	(Cheat_GodModeActive).l		; this phase checks Player_1 directly
+		beq.s	.normalHit
+		clr.b	collision_property(a0)
+.normalHit:
 		subq.b	#1,collision_property(a0)
 		bmi.s	loc_82E2C
 		move.b	#$20,$20(a0)
@@ -177053,6 +177282,7 @@ EndSign_Index:
 ; ---------------------------------------------------------------------------
 
 Obj_EndSignInit:
+		jsr	(Signpost_DebugArt).l
 		lea	ObjSlot_EndSigns(pc),a1
 		jsr	SetUp_ObjAttributesSlotted(pc)
 		btst	#7,(Player_1+art_tile).w
@@ -181287,7 +181517,8 @@ Restore_LevelMusic:
 		moveq	#signextendB(mus_Invincibility),d0		; If invincible, play invincibility
 
 loc_85B84:
-		jmp	(Play_Music).l
+		jsr	(Super_SelectRecoveryMusic).l
+		jmp	(Play_Music_IfChanged).l
 ; End of function Restore_LevelMusic
 
 
@@ -201010,7 +201241,26 @@ loc_92A20:
 		addq.b	#2,(Debug_placement_routine).w
 		move.l	mappings(a0),(Debug_saved_mappings).w
 		cmpi.b	#6,routine(a0)
-		bhs.s	loc_92A38
+		blo.s	.alive
+		lea	(Breathing_bubbles).w,a1
+		cmpa.l	$40(a1),a0
+		beq.s	.clearDrown
+		lea	(Breathing_bubbles_P2).w,a1
+		cmpa.l	$40(a1),a0
+		bne.s	.resume
+.clearDrown:
+		clr.w	$30(a1)				; cancel the delayed death after drowning
+.resume:
+		clr.b	(Deform_lock).w
+		tst.w	(Competition_mode).w
+		bne.s	loc_92A38
+		move.b	#1,(Update_HUD_timer).w
+		tst.b	(Time_over_flag).w
+		beq.s	loc_92A38
+		clr.b	(Time_over_flag).w
+		clr.l	(Timer).w
+		bra.s	loc_92A38
+.alive:
 		move.w	art_tile(a0),(Debug_saved_art_tile).w
 
 loc_92A38:
@@ -201023,9 +201273,16 @@ loc_92A38:
 		beq.s	loc_92A6E
 		movea.l	a0,a1
 		jsr	(Player_ResetAirTimer).l
-		move.w	#$600,(Max_speed).w
-		move.w	#$C,(Acceleration).w
-		move.w	#$80,(Deceleration).w
+		lea	(Max_speed).w,a1
+		tst.w	(Competition_mode).w
+		bne.s	.restoreSpeed
+		cmpi.w	#2,(Player_mode).w
+		bne.s	.restoreSpeed
+		lea	(Max_speed_P2).w,a1		; Tails alone uses the Tails speed variables
+.restoreSpeed:
+		move.w	#$600,(a1)+
+		move.w	#$C,(a1)+
+		move.w	#$80,(a1)
 
 loc_92A6E:
 		move.b	#0,mapping_frame(a0)
@@ -201197,8 +201454,8 @@ loc_92C0C:
 		move.l	(Debug_saved_mappings).w,mappings(a1)
 		move.w	(Debug_saved_art_tile).w,art_tile(a1)
 		bsr.s	sub_92C54
-		move.b	#$13,y_radius(a1)
-		move.b	#9,x_radius(a1)
+		move.b	default_y_radius(a1),y_radius(a1)
+		move.b	default_x_radius(a1),x_radius(a1)
 
 locret_92C52:
 		rts

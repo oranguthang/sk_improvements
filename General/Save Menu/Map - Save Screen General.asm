@@ -35,6 +35,7 @@ Map_SaveScreen_:
 		dc.w word_D108-Map_SaveScreen_
 		dc.w word_D110-Map_SaveScreen_
 		dc.w word_D118-Map_SaveScreen_
+		dc.w Save_KnucklesAndTails-Map_SaveScreen_
 word_CE56:	dc.w 0
 word_CE58:	dc.w $12
 		dc.b  $A8,   0,   1,   7, $FF, $D8
@@ -183,3 +184,15 @@ word_D118:	dc.w 6
 		dc.b  $A8,  $E, $62, $A9, $FF, $F8
 		dc.b  $88,   7, $62, $B5,   0, $18
 		dc.b  $A8,   6, $62, $BD,   0, $18
+
+; Knuckles faces left, matching Sonic in the native paired portrait.
+; Tails uses that portrait's exact positions and horizontal reflections.
+Save_KnucklesAndTails: dc.w 7
+		dc.b $D8, $E, $20, $90, $FF, $E7
+		dc.b $F0, 8, $20, $9C, $FF, $EF
+		dc.b $F8, $C, $20, $9F, $FF, $E7
+		dc.b $D6, 0, $28, $7E, 0, 0
+		dc.b $DE, $D, $28, $7F, $FF, $F8
+		dc.b $EE, $D, $28, $87, 0, 0
+		dc.b $F6, 0, $28, $8F, $FF, $F8
+		even

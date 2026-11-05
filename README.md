@@ -24,6 +24,7 @@ Gameplay additions, each behind its own switch near the top of `sonic3k.asm` (1 
 | `FeatureStarPostRings` | 1 | Restarting at a Star Post keeps the ring count |
 | `FeatureSmoothSlots` | 1 | The Slots bonus stage rotates in 256 steps instead of 64 |
 | `FeatureBlueKnuckles` | 1 | Player mode 4, Blue Knuckles, in the Level Select |
+| `FeatureSuperToggle` | 1 | A+B/A+C/B+C toggles Super/Hyper for every character, including reversion during flight/glide/climbing |
 | `FeatureHomingAttack` | 1 | Sonic's Homing Attack, or a Jump Dash without a target, instead of the Insta-Shield |
 | `FeatureExtendedCamera` | 1 | The camera looks ahead at top speed and while charging a Spin Dash |
 | `FeatureExtraLives` | 1 | A life for every 100 rings, not only at 100 and 200 |
@@ -40,7 +41,7 @@ The attract demos keep the original air move and camera, so they play as recorde
 Always in the build, without a switch:
 
 - Vladikcomper's MD Debugger with symbolic backtraces (see [Error diagnostics](#error-diagnostics))
-- The Level Select unlock, the CHEATS page (ALL EMERALDS, DEBUG, SUPER RINGS, RING DRAIN, GOD MODE), debug coordinates and their SRAM record (see [Cheats and settings](#cheats-and-settings))
+- The title LEVEL SELECT and CHEATS entries, separate Chaos/Super Emerald cheats, SUPER MUSIC, DEBUG, SUPER RINGS, RING DRAIN, GOD MODE, debug coordinates and their SRAM record (see [Cheats and settings](#cheats-and-settings))
 - The disassembly's `FixBugs` fixes and the ported Sonic Retro fixes (see [Built-in fixes](#built-in-fixes) and [Implemented Sonic Retro tutorials](#implemented-sonic-retro-tutorials))
 - The data-driven water table (`WaterSettings`) and bounds-safe character tables for player modes above 3
 - Flamewing's UltraDMAQueue and six-button controller support
@@ -49,7 +50,7 @@ Always in the build, without a switch:
 
 ## Cheats and settings
 
-The Level Select (unlocked by the game's Angel Island vine code or the Sonic 1 title code Up, Down, Down, Down, Left, Right) has a CHEATS page: ALL EMERALDS, DEBUG, SUPER RINGS, RING DRAIN and GOD MODE. The unlock, the cheats and the Level Select character are kept in an SRAM record that leaves the save files untouched, and debug mode shows the coordinates in the upper right corner. See [settings, cheats and SRAM](docs/settings.md).
+The Angel Island vine code or the title code Up, Down, Down, Down, Left, Right unlocks LEVEL SELECT and CHEATS as separate title entries. CHEATS has separate ALL CHAOS EMERALDS and ALL SUPER EMERALDS, DEBUG, SUPER RINGS, RING DRAIN, GOD MODE and SUPER MUSIC. DEBUG and GOD MODE also work for player 1 in Competition. The unlock, the cheats and the Level Select character are kept in an SRAM record that leaves the save files untouched, and debug mode shows the coordinates in the upper right corner. Level Select displays character names. New save slots and NO SAVE also offer Knuckles and Tails, with Knuckles' route and AI partner. During the AIZ2 bombing run, AI Tails continues running right instead of braking when he reaches the leader. See [settings, cheats and SRAM](docs/settings.md).
 
 ## Error diagnostics
 
@@ -66,6 +67,10 @@ python tests/check_demo_cycle.py --gens path/to/Gens.exe --baseline ../sk_base/s
 ```
 
 The demos were recorded with the original game, so they keep its moves and centred camera (see the [modding reference](docs/modding.md)); the default build plays them frame for frame like a build with every `Feature` switch at 0.
+
+`python tests/check_aiz1_camera_bounds.py` checks camera panning in AIZ1's lower giant-ring passage for all five player modes, the height-table transitions, forced and locked cameras, and death on a real fall. It runs the assembled 68000 routines and needs Python 3 with `unicorn==2.1.4`; build `sonic3k.bin` first.
+
+`python tests/check_controls_and_settings.py` exercises the assembled settings migration, both emerald cheats, character selection, Super/Hyper combos, music recovery, debug signpost loading and P1-only Competition protection. It needs Unicorn 2.1.4 and the default ROM build. Real-emulator checks cover title menus, a Knuckles and Tails save across a cold reset, all eight solo form toggles, and repeated debug roundtrips for all nine Competition character pairs; full routes and endings still need play-testing.
 
 ## Built-in fixes
 
@@ -95,7 +100,7 @@ The disassembly's built-in `FixBugs` flag is enabled, applying approximately 59 
 
 Six-button controllers are detected on both ports. X, Y, Z, and Mode have separate held/pressed input states in `Ctrl_1_held_6B` / `Ctrl_1_pressed_6B` and their player-two equivalents; bit 7 of the held state indicates a detected six-button controller. The extra buttons currently have no gameplay bindings. Enable six-button controllers in your emulator to use these inputs.
 
-Blue Knuckles (`Player_mode` 4) can be picked in the Level Select by pressing C until the character number reads 04. Every player mode of 3 or higher now follows Knuckles' route, level events and abilities, and character-indexed tables are clamped so modes above 3 can no longer read past their end (signpost, Slots, Special Stage results, Continue screen, ending). Only mode 3 loads Knuckles' red palette, so mode 4 keeps Sonic's colors. Super/Hyper Blue Knuckles uses Super Knuckles' palette cycle with the red and blue channels swapped and returns to his blue colors, underwater included, when the form ends.
+Blue Knuckles (`Player_mode` 4) can be picked in the Level Select by pressing C until the footer reads BLUE KNUCKLES. Every player mode of 3 or higher now follows Knuckles' route, level events and abilities, and character-indexed tables are clamped so modes above 3 can no longer read past their end (signpost, Slots, Special Stage results, Continue screen, ending). Only mode 3 loads Knuckles' red palette, so mode 4 keeps Sonic's colors. Super/Hyper Blue Knuckles uses Super Knuckles' palette cycle with the red and blue channels swapped and returns to his blue colors, underwater included, when the form ends.
 
 ## Open questions
 
@@ -104,7 +109,7 @@ Things not yet checked in the emulator, or left as they are on purpose:
 - Homing Attack: that bosses are never targeted was not tried in a boss fight.
 - Light Dash: chains under water, across loops or into walls, and an act change during a dash.
 - Super Peel-Out: tried in Angel Island only.
-- CHEATS: ALL EMERALDS was not followed through the giant rings, Doomsday and the endings.
+- CHEATS: the emerald overlays were not followed through the giant rings, Doomsday and the endings.
 - `FeatureInstantTally`, `FeatureStarPostRings` and `FeatureSmoothSlots` were not played with the switch at 0.
 - Extended camera: the snap down after a long fall was not reproduced.
 - The Kosinski queue's fast decoder is checked to keep to the registers that `Set_Kos_Bookmark` saves and to write only its output; an interruption at every point was not simulated.

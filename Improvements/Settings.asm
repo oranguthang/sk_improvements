@@ -9,7 +9,7 @@
 ; A write invalidates the signature first and commits its first byte last.
 ; This code runs with SRAM mapped over $200000, so it must stay below it.
 ; ---------------------------------------------------------------------------
-settings_sram_version = 1
+settings_sram_version = 2
 settings_sram_payload = (Settings_Fields_End-Settings_Fields)/2
 settings_sram_size = 6+settings_sram_payload+2
 
@@ -21,6 +21,10 @@ Settings_Defaults:
 		clr.w	(Level_select_flag).w		; and Slow_motion_flag
 		clr.w	(Debug_cheat_flag).w
 		clr.b	(Cheat_all_emeralds).w
+		clr.b	(Cheat_super_emeralds).w
+		move.b	#1,(Cheat_super_music).w
+		clr.b	(Cheats_from_title).w
+		clr.b	(Music_playing).w
 		move.b	#50,(Cheat_super_rings).w
 		move.b	#1,(Cheat_ring_drain).w
 		clr.b	(Cheat_god_mode).w
@@ -67,19 +71,22 @@ Settings_Normalize:
 		clr.b	(Player_option+1).w
 
 .done:
+	if FeatureBlueKnuckles=0
+		cmpi.b	#4,(Player_option+1).w
+		bne.s	.notBlue
+		clr.b	(Player_option+1).w
+.notBlue:
+	endif
 		movem.l	(sp)+,d0-d1/a0-a1
 		rts
 ; End of function Settings_Normalize
 
-	if FeatureBlueKnuckles
-Settings_PlayerOptions = 5
-	else
-Settings_PlayerOptions = 4
-	endif
+Settings_PlayerOptions = 6	; Blue Knuckles is skipped separately when disabled
 
 Settings_BoolFields:
 		dc.w	Level_select_flag&$FFFF, Debug_cheat_flag&$FFFF
 		dc.w	Cheat_all_emeralds&$FFFF, Cheat_ring_drain&$FFFF, Cheat_god_mode&$FFFF
+		dc.w	Cheat_super_music&$FFFF, Cheat_super_emeralds&$FFFF
 Settings_BoolFields_End:
 
 ; RAM byte of each saved setting, in record order. Append new fields at the end
@@ -87,17 +94,20 @@ Settings_BoolFields_End:
 Settings_Fields:
 		dc.w	Level_select_flag&$FFFF		; Level Select and CHEATS unlocked
 		dc.w	Debug_cheat_flag&$FFFF		; DEBUG
-		dc.w	Cheat_all_emeralds&$FFFF	; ALL EMERALDS
+		dc.w	Cheat_all_emeralds&$FFFF	; ALL CHAOS EMERALDS
 		dc.w	Cheat_super_rings&$FFFF		; SUPER RINGS
 		dc.w	Cheat_ring_drain&$FFFF		; RING DRAIN
 		dc.w	Cheat_god_mode&$FFFF		; GOD MODE
 		dc.w	(Player_option+1)&$FFFF		; Level Select character
+		dc.w	Cheat_super_music&$FFFF	; SUPER MUSIC
+		dc.w	Cheat_super_emeralds&$FFFF	; ALL SUPER EMERALDS
 Settings_Fields_End:
 
 ; d0.w = sum of the bytes before the checksum at a0. Clobbers d1/a0.
 Settings_Checksum:
 		moveq	#0,d0
 		moveq	#settings_sram_size-2-1,d1
+Settings_ChecksumLength:
 
 .loop:
 		add.b	(a0)+,d0
@@ -132,20 +142,33 @@ Settings_Load:
 		move.w	(sp)+,sr
 		cmpi.l	#'S3DV',(sp)
 		bne.s	.done
-		cmpi.b	#settings_sram_version,4(sp)
-		bne.s	.done
-		cmpi.b	#settings_sram_payload,5(sp)
-		bne.s	.done
+		moveq	#0,d2
+		move.b	5(sp),d2
+		cmpi.w	#(settings_sram_version<<8)|settings_sram_payload,4(sp)
+		beq.s	.check
+		cmpi.w	#$0107,4(sp)		; original settings record
+		bne.w	.done
+.check:
 		movea.l	sp,a0
-		bsr.s	Settings_Checksum
-		cmp.b	settings_sram_size-1(sp),d0
+		move.w	d2,d1
+		addq.w	#5,d1
+		moveq	#0,d0
+		bsr.w	Settings_ChecksumLength
+		lea	6(sp),a1
+		adda.w	d2,a1
+		cmp.b	1(a1),d0
 		bne.s	.done
 		lsr.w	#8,d0
-		cmp.b	settings_sram_size-2(sp),d0
+		cmp.b	(a1),d0
 		bne.s	.done
+		cmpi.b	#1,4(sp)
+		bne.s	.fieldsReady
+		move.b	8(sp),(Cheat_super_emeralds).w ; old ALL EMERALDS meant both sets
+.fieldsReady:
 		lea	6(sp),a0
 		lea	Settings_Fields(pc),a2
-		moveq	#settings_sram_payload-1,d1
+		move.w	d2,d1
+		subq.w	#1,d1
 
 .fields:
 		movea.w	(a2)+,a1
