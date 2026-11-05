@@ -4569,7 +4569,16 @@ SuperHyper_PalCycle_RevertNotSonic:
 		lea	(PalCycle_SuperTails).l,a0		; Used here because the first set of colors is Tails' normal palette
 		bsr.w	SuperHyper_PalCycle_ApplyTails
 		lea	(PalCycle_SuperSonic).l,a0		; Why does Tails manipulate Sonic's palette? For his Super-form's Super Flickies
-		bra.w	SuperHyper_PalCycle_Apply
+		bsr.w	SuperHyper_PalCycle_Apply
+		tst.b	(Water_flag).w
+		beq.s	.return
+		; Restore the act's normal underwater fur and freed Super Flicky colors.
+		move.l	(Target_water_palette+$04).w,(Water_palette+$04).w
+		move.w	(Target_water_palette+$08).w,(Water_palette+$08).w
+		move.l	(Target_water_palette+$10).w,(Water_palette+$10).w
+		move.w	(Target_water_palette+$16).w,(Water_palette+$16).w
+.return:
+		rts
 ; ---------------------------------------------------------------------------
 
 SuperHyper_PalCycle_RevertKnuckles:
@@ -9856,17 +9865,18 @@ Pal_SuperKnuxWater_HCZ:
 		dc.w $E6E,$E4E,$C48
 		dc.w $E4C,$C2C,$A28
 		dc.w $E2A,$C0A,$A06
+; IceCap water is nearly clear, so keep the original above-water pulse.
 Pal_SuperKnuxWater_ICZ:
-		dc.w $C8C,$A6A,$848
-		dc.w $CAC,$A6A,$848
-		dc.w $CAC,$A8A,$868
-		dc.w $EAC,$C8C,$A68
-		dc.w $EAE,$CAC,$A8A
-		dc.w $EAC,$C8C,$A68
-		dc.w $CAC,$A8A,$868
-		dc.w $CAC,$A6A,$848
-		dc.w $C8C,$A6A,$848
-		dc.w $A8A,$A6A,$646
+		dc.w $A6E,$64E,$428
+		dc.w $C8E,$86E,$64A
+		dc.w $EAE,$A8E,$86C
+		dc.w $ECE,$CAE,$A8E
+		dc.w $EEE,$ECE,$CAE
+		dc.w $ECE,$CAE,$A8E
+		dc.w $EAE,$A8E,$86C
+		dc.w $C8E,$86E,$64A
+		dc.w $A6E,$64E,$428
+		dc.w $84E,$40C,$206
 Pal_SuperKnuxWater_LBZ:
 		dc.w $86E,$84A,$646
 		dc.w $A8E,$A6C,$848
