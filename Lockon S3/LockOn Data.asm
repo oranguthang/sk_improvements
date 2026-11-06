@@ -540,26 +540,30 @@ ArtUnc_AniICZ__0:
 ArtUnc_AniLBZ1_0:
 		binclude "Levels/LBZ/Animated Tiles/Act1 0.unc"
 		even
-ArtUnc_AniLBZ1_1:
-		binclude "Levels/LBZ/Animated Tiles/Act1 1.unc"
-		even
-ArtUnc_AniLBZ1_2:
-		binclude "Levels/LBZ/Animated Tiles/Act1 2.unc"
-		even
+; Keep this group the same size and the LBZ1 background strips in one DMA bank.
 ArtUnc_AniLBZ2_2:
 		binclude "Levels/LBZ/Animated Tiles/Act2 2.unc"
 		even
+; The waterline lookup reads both this art and the following BG tiles.
 ArtUnc_AniLBZ2_WaterlineBelow:
 		binclude "Levels/LBZ/Animated Tiles/Act2 Water Below.unc"
 		even
 ArtUnc_AniLBZ2_LowerBG:
 		binclude "Levels/LBZ/Animated Tiles/Act2 Lower BG.unc"
 		even
+ArtUnc_AniLBZ1_2:
+		binclude "Levels/LBZ/Animated Tiles/Act1 2.unc"
+		even
+; The same paired lookup applies here. Only the CPU reads the waterline
+; art in this pair, so it may straddle the DMA bank boundary.
 ArtUnc_AniLBZ2_WaterlineAbove:
 		binclude "Levels/LBZ/Animated Tiles/Act2 Water Above.unc"
 		even
 ArtUnc_AniLBZ2_UpperBG:
 		binclude "Levels/LBZ/Animated Tiles/Act2 Upper BG.unc"
+		even
+ArtUnc_AniLBZ1_1:
+		binclude "Levels/LBZ/Animated Tiles/Act1 1.unc"
 		even
 ArtUnc_AniLBZ__0:
 		binclude "Levels/LBZ/Animated Tiles/0.unc"

@@ -768,9 +768,9 @@ word_14B4A0:	dc.w 3
 		dc.b    0,  $D,   0,   3, $FF, $F4
 		dc.b  $10,   8,   0,  $B, $FF, $F4
 word_14B4B4:	dc.w 3
-		dc.b  $EF,  $B,   0,   0, $FF, $F0
-		dc.b  $EF,   6,   0,  $C,   0,   8
-		dc.b   $F,   4,   0, $12, $FF, $F8
+		dc.b  $F3,  $B,   0,   0, $FF, $F0
+		dc.b  $F3,   6,   0,  $C,   0,   8
+		dc.b  $13,   4,   0, $12, $FF, $F8
 word_14B4C8:	dc.w 4
 		dc.b  $EB,  $A,   0,   0, $FF, $F2
 		dc.b  $EB,   5,   0,   9,   0,  $A
