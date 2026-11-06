@@ -511,6 +511,7 @@ Screen_shake_offset		ds.w 1			; vertical offset when screen_shake_flag is enable
 Screen_shake_last_offset	ds.w 1			; value of Screen_shake_offset for the previous frame
 
 Events_bg			ds.b $18		; $18 bytes ; various flags used by background events
+AIZ2_TailsRunout =		Events_bg+$06		; keep following held Right after the airship leaves
 SStage_results_object_addr =	Events_bg+$E		; word ; RAM address of the special stage results object
 FBZ_cloud_addr =		*			; $14 bytes ; addresses for cloud objects in FBZ2
 Vscroll_buffer =		*			; $50 bytes ; vertical scroll buffer used in various levels

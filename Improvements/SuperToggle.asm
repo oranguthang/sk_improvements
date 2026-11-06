@@ -108,6 +108,36 @@ Player_SuperCombo:
 		bra.s	.none
 
 
+; Both ordinary deaths and drowning enter here before the death pose is drawn.
+Super_ResetOnDeath:
+		cmpa.w	#Player_1,a0
+		bne.s	.return
+		tst.b	(Super_Sonic_Knux_flag).w
+		bne.s	.reset
+		tst.b	(Super_Tails_flag).w
+		bne.s	.reset
+		tst.b	(Super_palette_status).w
+		beq.s	.return
+.reset:
+		movem.l	d0/a0-a2/a4,-(sp)
+		lea	(Max_speed).w,a4
+		cmpi.b	#1,character_id(a0)
+		bne.s	.speed
+		lea	(Max_speed_P2).w,a4
+		move.b	#-1,(Player_prev_frame_P2).w
+.speed:
+		jsr	(SonicKnux_SuperHyper.revertToNormal).l
+		clr.b	object_control(a0)
+		clr.b	invincibility_timer(a0)
+		bclr	#Status_Invincible,status_secondary(a0)
+		clr.w	(Super_frame_count).w
+		clr.w	(Palette_frame).w	; restore the normal palettes in one step
+		clr.b	(Palette_timer).w
+		jsr	(SuperHyper_PalCycle).l
+		movem.l	(sp)+,d0/a0-a2/a4
+.return:
+		rts
+
 Player_DebugButton:
 		movem.l	d0,-(sp)
 		cmpa.w	#Player_1,a0

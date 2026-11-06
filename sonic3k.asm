@@ -21342,6 +21342,7 @@ Kill_Character:
 		moveq	#signextendB(sfx_Death),d0
 
 loc_1036E:
+		jsr	(Super_ResetOnDeath).l
 		clr.b	status_secondary(a0)
 		clr.b	status_tertiary(a0)
 		move.b	#6,routine(a0)
@@ -22659,11 +22660,16 @@ AirRoll:
 		and.b	(Ctrl_1_pressed_logical).w,d0	; is A, B, or C pressed?
 
 AirRoll_Check:
-		beq.s	.return			; if not, branch
+		beq.s	AirRoll_Return
 
 		cmpi.b	#2,anim(a0)		; already in ball animation?
-		beq.s	.enable_ability		; if yes, enable ability directly
+		beq.s	AirRoll_EnableAbility
 
+		bsr.s	AirRoll_Curl
+		addq.l	#4,sp			; Sonic skips the rest of the caller this frame
+		rts
+
+AirRoll_Curl:
 		move.b	#2,anim(a0)		; enter ball animation
 		bset	#Status_Roll,status(a0)	; set rolling flag
 		bne.s	.was_rolling		; if it was already set, the hitbox is already ball-sized
@@ -22680,16 +22686,15 @@ AirRoll_Check:
 
 .was_rolling:
 		move.b	#2,jumping(a0)		; air move allowed, and a spring launch is not cut short
-		addq.l	#4,sp			; skip rest of caller this frame
 		rts
 ; ---------------------------------------------------------------------------
 
-.enable_ability:
+AirRoll_EnableAbility:
 		tst.b	jumping(a0)		; already jumping?
-		bne.s	.return			; then keep its kind of jump
+		bne.s	AirRoll_Return		; then keep its kind of jump
 		move.b	#1,jumping(a0)		; enable the air move on the next JumpHeight call
 
-.return:
+AirRoll_Return:
 		rts
 ; End of function AirRoll
 
@@ -22710,12 +22715,26 @@ AirRoll_Tails:
 .human:
 		moveq	#button_A_mask|button_B_mask|button_C_mask,d0
 		and.b	(Ctrl_2_pressed_logical).w,d0	; is A, B, or C pressed?
-		bra.s	AirRoll_Check
+		bra.s	AirRoll_PartnerCheck
 ; ---------------------------------------------------------------------------
 
 .return:
 		rts
 ; End of function AirRoll_Tails
+
+AirRoll_Knuckles:
+	if FeatureAirRoll=0
+		rts
+	endif
+		moveq	#button_A_mask|button_B_mask|button_C_mask,d0
+		and.b	(Ctrl_1_pressed_logical).w,d0
+
+AirRoll_PartnerCheck:
+		beq.s	.return
+		btst	#Status_Roll,status(a0)
+		beq.s	AirRoll_Curl
+.return:
+		rts
 
 ; ---------------------------------------------------------------------------
 ; Extended camera, as in Sonic 1 and Sonic 2 Improvements (Sonic CD's camera,
@@ -26362,6 +26381,7 @@ loc_1335A:
 		tst.b	double_jump_flag(a0)
 		bne.s	loc_1338E
 		bsr.w	Tails_JumpHeight
+		bsr.w	AirRoll_Tails
 		bsr.w	Tails_InputAcceleration_Freespace
 		jsr	(MoveSprite).l
 		btst	#Status_Underwater,status(a0)
@@ -28267,8 +28287,8 @@ Tails_Stand_Freespace:
 	endif
 		tst.b	double_jump_flag(a0)
 		bne.s	Tails_FlyingSwimming
-		bsr.w	AirRoll_Tails
 		bsr.w	Tails_JumpHeight
+		bsr.w	AirRoll_Tails
 		bsr.w	Tails_InputAcceleration_Freespace
 		bsr.w	Tails_Check_Screen_Boundaries
 		jsr	(MoveSprite_TestGravity).l
@@ -28484,7 +28504,6 @@ Tails_Spin_Freespace:
 	if FeatureLightDash
 		jsr	(Player_LightDashStart).l	; A next to a ring chain: Light Dash
 	endif
-		bsr.w	AirRoll_Tails
 		tst.b	(Flying_carrying_Sonic_flag).w
 		beq.s	loc_149BA
 		lea	(Player_1).w,a1
@@ -29325,6 +29344,13 @@ loc_150D2:
 
 
 Tails_JumpHeight:
+	if FeatureAirRoll
+		btst	#Status_Roll,status(a0)
+		beq.s	.normalHeight
+		cmpi.b	#1,jumping(a0)
+		bne.w	Tails_Test_For_Flight	; Air Roll or a roll off a ledge
+.normalHeight:
+	endif
 		tst.b	jumping(a0)
 		beq.s	loc_15106
 		move.w	#-$400,d1
@@ -29368,6 +29394,10 @@ locret_1511A:
 ; ---------------------------------------------------------------------------
 
 Tails_Test_For_Flight:
+	if FeatureAirRoll
+		btst	#Status_Roll,status(a0)
+		beq.w	locret_151A2
+	endif
 		tst.b	double_jump_flag(a0)
 		bne.w	locret_151A2
 		move.b	(Ctrl_2_pressed_logical).w,d0
@@ -29405,7 +29435,7 @@ loc_1515C:
 		ext.w	d1
 		tst.b	(Reverse_gravity_flag).w
 		beq.s	loc_15188
-		neg.w	d0
+		neg.w	d1
 
 loc_15188:
 		add.w	d1,y_pos(a0)
@@ -31450,8 +31480,8 @@ Knux_Stand_Freespace:
 	endif
 		tst.b	double_jump_flag(a0)
 		bne.s	Knux_Glide_Freespace
-		bsr.w	AirRoll
 		bsr.w	Knux_JumpHeight
+		bsr.w	AirRoll_Knuckles
 		bsr.w	Knux_ChgJumpDir
 		bsr.w	Player_LevelBound
 		jsr	(MoveSprite_TestGravity).l
@@ -32552,7 +32582,6 @@ Knux_Spin_Freespace:
 	if FeatureLightDash
 		jsr	(Player_LightDashStart).l	; A next to a ring chain: Light Dash
 	endif
-		bsr.w	AirRoll
 		bsr.w	Knux_JumpHeight
 		bsr.w	Knux_ChgJumpDir
 		bsr.w	Player_LevelBound
@@ -33316,6 +33345,13 @@ loc_177E2:
 
 
 Knux_JumpHeight:
+	if FeatureAirRoll
+		btst	#Status_Roll,status(a0)
+		beq.s	.normalHeight
+		cmpi.b	#1,jumping(a0)
+		bne.w	Knux_Test_For_Glide	; Air Roll or a roll off a ledge
+.normalHeight:
+	endif
 		tst.b	jumping(a0)
 		beq.s	loc_17818
 		move.w	#-$400,d1
@@ -33359,6 +33395,10 @@ locret_1782C:
 ; ---------------------------------------------------------------------------
 
 Knux_Test_For_Glide:
+	if FeatureAirRoll
+		btst	#Status_Roll,status(a0)
+		beq.w	locret_178CC
+	endif
 		tst.b	double_jump_flag(a0)
 		bne.w	locret_178CC
 		move.b	(Ctrl_1_pressed_logical).w,d0
@@ -34381,6 +34421,10 @@ AirCountdown_WarnSound:
 AirCountdown_ReduceAir:
 		subq.b	#1,air_left(a2)
 		bcc.w	loc_18592
+		move.l	a0,-(sp)
+		movea.l	a2,a0
+		jsr	(Super_ResetOnDeath).l
+		movea.l	(sp)+,a0
 		move.b	#$81,object_control(a2)
 		move.w	#sfx_Drown,d0
 		jsr	(Play_SFX).l
@@ -105161,6 +105205,7 @@ SpecialEvents:
 ; ---------------------------------------------------------------------------
 SpecialEvents_Index:
 		dc.l locret_4F366
+AIZ2_ShipLoopEvent = *-SpecialEvents_Index
 		dc.l AIZ2_DoShipLoop
 		dc.l loc_54CB0
 		dc.l loc_5560C
@@ -105973,7 +106018,7 @@ AIZ2SE_Normal:
 		subi.w	#$10,d0
 		move.w	d0,(HScroll_table+$1FE).w
 		st	(Scroll_lock).w				; Camera doesn't follow Sonic
-		move.w	#4,(Special_events_routine).w
+		move.w	#AIZ2_ShipLoopEvent,(Special_events_routine).w
 		addq.w	#4,(Events_routine_fg).w		; Set speed of automatic movement
 
 AIZ2SE_ShipRefresh:
@@ -106672,6 +106717,7 @@ loc_50712:
 		clr.b	(Scroll_lock).w
 		clr.w	(Special_events_routine).w
 		clr.w	(Level_repeat_offset).w			; Stop repeating scrolling section
+		st	(AIZ2_TailsRunout).w
 		move.w	#$6000,(Camera_max_X_pos).w	; Change level size
 		jmp	(Delete_Current_Sprite).l
 ; ---------------------------------------------------------------------------

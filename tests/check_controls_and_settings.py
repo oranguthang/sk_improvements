@@ -161,10 +161,39 @@ def god_and_ai():
             want=slot=='Player_1'
             assert c.call('Cheat_GodModePlayer')==want and c.call('Cheat_GodModeAir')==want
             c.w('Demo_mode_flag',1,2);assert not c.call('Cheat_GodModePlayer')
-    c=c3();c.reg(UC_M68K_REG_A0,c.s['Player_2']);c.w('Current_zone_and_act',1,2);c.w('Events_routine_bg',20,2)
-    c.reg(UC_M68K_REG_D1,0x400);c.call('Tails_FollowBombingRun');assert c.uc.reg_read(UC_M68K_REG_D1)==0x800
-    c.w('Tails_CPU_idle_timer',1,2);c.reg(UC_M68K_REG_D1,0x400);c.call('Tails_FollowBombingRun');assert c.uc.reg_read(UC_M68K_REG_D1)==0x400
-    return {'competition_p1_only':True,'demo_protection_disabled':True,'bombing_run_ai_continues_right':True,'human_p2_preserved':True}
+    c = c3()
+    c.reg(UC_M68K_REG_A0, c.s['Player_2'])
+    c.w('Current_zone_and_act', 1, 2)
+    c.w('Events_routine_bg', 20, 2)
+    c.w('Ctrl_1_held_logical', 8)
+    c.reg(UC_M68K_REG_D1, 0x404)
+    c.call('Tails_FollowBombingRun')
+    assert c.uc.reg_read(UC_M68K_REG_D1) == 0x404  # the ship is still approaching
+    c.w('Special_events_routine', c.s['AIZ2_ShipLoopEvent'], 2)
+    c.w('Events_routine_fg', 8, 2)
+    for held, expected in ((8, 0x820), (4, 0x420), (0, 0x20)):
+        c.w('Ctrl_1_held_logical', held)
+        c.reg(UC_M68K_REG_D1, 0x424)
+        c.call('Tails_FollowBombingRun')
+        assert c.uc.reg_read(UC_M68K_REG_D1) == expected
+    c.w('Ctrl_1_held_logical', 8)
+    c.w('Tails_CPU_idle_timer', 1, 2)
+    c.reg(UC_M68K_REG_D1, 0x404)
+    c.call('Tails_FollowBombingRun')
+    assert c.uc.reg_read(UC_M68K_REG_D1) == 0x404
+    c.w('Special_events_routine', 0, 2)
+    c.w('Tails_CPU_idle_timer', 0, 2)
+    c.w('AIZ2_TailsRunout', 0xFF)
+    c.w(c.s['Player_1'] + c.s['x_vel'], 0x600, 2)
+    c.reg(UC_M68K_REG_D1, 0x404)
+    c.call('Tails_FollowBombingRun')
+    assert c.uc.reg_read(UC_M68K_REG_D1) == 0x800
+    c.w('Ctrl_1_held_logical', 0)
+    c.reg(UC_M68K_REG_D1, 0x404)
+    c.call('Tails_FollowBombingRun')
+    assert c.uc.reg_read(UC_M68K_REG_D1) == 0x404
+    assert c.r('AIZ2_TailsRunout') == 0
+    return {'competition_p1_only':True,'demo_protection_disabled':True,'bombing_run_ai_follows_direction':True,'human_p2_preserved':True}
 
 def signpost():
     c=c3();plcs=[];c.w('Debug_mode_flag',1)

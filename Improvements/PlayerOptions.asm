@@ -66,22 +66,37 @@ CharacterNames:
 		restore
 		even
 
-; AI-only held input for the scrolling AIZ2 bombing passage.
+; During the AIZ2 ship loop, use the leader's held direction instead of
+; steering towards positions recorded before the camera wraps.
 Tails_FollowBombingRun:
 		cmpi.w	#1,(Current_zone_and_act).w
 		bne.s	.return
-		cmpi.w	#20,(Events_routine_bg).w
-		bne.s	.return
-		tst.w	(Events_routine_fg).w
-		bne.s	.return
+		cmpi.w	#AIZ2_ShipLoopEvent,(Special_events_routine).w
+		beq.s	.checkAI
+		tst.b	(AIZ2_TailsRunout).w
+		beq.s	.return
+		; The trailing history points behind both runners at the handoff.
+		; Keep their current direction until Sonic lets go or slows down.
+		btst	#button_right,(Ctrl_1_held_logical).w
+		beq.s	.endRunout
+		cmpi.w	#$200,(Player_1+x_vel).w
+		ble.s	.endRunout
+.checkAI:
 		tst.w	(Tails_CPU_idle_timer).w
 		bne.s	.return
 		cmpa.w	#Player_1,a0
 		beq.s	.return
 		tst.w	(Demo_mode_flag).w
 		bne.s	.return
-		andi.w	#~((button_left_mask|button_right_mask)<<8),d1
-		ori.w	#button_right_mask<<8,d1
+		moveq	#0,d0
+		move.b	(Ctrl_1_held_logical).w,d0
+		andi.b	#button_left_mask|button_right_mask,d0
+		lsl.w	#8,d0
+		andi.w	#~((button_left_mask|button_right_mask)*$101),d1
+		or.w	d0,d1
+		rts
+.endRunout:
+		clr.b	(AIZ2_TailsRunout).w
 .return:
 		rts
 
