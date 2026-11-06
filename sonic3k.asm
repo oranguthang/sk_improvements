@@ -110426,14 +110426,6 @@ FBZ2_ScreenInit:
 		clr.l	(_unkEE98).w
 		clr.l	(_unkEE9C).w		; Clear BG camera offset
 		move.w	#VRAM_Plane_B_Name_Table,d7
-		movem.l	d7-a0/a2-a3,-(sp)
-		lea	(ArtKosM_FBZCloud).l,a1
-		move.w	#tiles_to_bytes(ArtTile_FBZCloud),d2
-		jsr	(Queue_Kos_Module).l
-		lea	(ArtKosM_FBZBossPillar).l,a1
-		move.w	#tiles_to_bytes(ArtTile_FBZBossPillar),d2
-		jsr	(Queue_Kos_Module).l	; Load boss event graphics
-		movem.l	(sp)+,d7-a0/a2-a3
 
 loc_52E2C:
 		jsr	Reset_TileOffsetPositionActual(pc)
@@ -110572,6 +110564,15 @@ FBZ2SE_BossEventEnd:
 
 
 SetUp_FBZ2BossEvent:
+		; Both the regular approach and a checkpoint load need this art.
+		move.l	a2,-(sp)
+		lea	(ArtKosM_FBZCloud).l,a1
+		move.w	#tiles_to_bytes(ArtTile_FBZCloud),d2
+		jsr	(Queue_Kos_Module).l
+		lea	(ArtKosM_FBZBossPillar).l,a1
+		move.w	#tiles_to_bytes(ArtTile_FBZBossPillar),d2
+		jsr	(Queue_Kos_Module).l
+		movea.l	(sp)+,a2
 		jsr	(AllocateObject).l
 		bne.s	loc_52F7A
 		move.l	#Obj_FBZEndBossEventControl,(a1)
@@ -111089,7 +111090,7 @@ loc_5347C:
 		move.w	#$100,d2
 		move.w	#$100,d3
 		jsr	(SolidObjectFull).l	; Make it solid
-		jmp	(Draw_Sprite).l
+		bra.s	FBZ2_DrawBossScenery
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -111116,7 +111117,7 @@ FBZBossPillar_CheckPlayerPos:
 ; ---------------------------------------------------------------------------
 
 Obj_FBZCloud:
-		move.l	#Draw_Sprite,(a0)
+		move.l	#FBZ2_DrawBossScenery,(a0)
 		move.b	#$40,render_flags(a0)		; Multisprite routine
 		move.b	#$C,height_pixels(a0)
 		move.b	#$2C,width_pixels(a0)
@@ -111134,7 +111135,13 @@ Obj_FBZCloud:
 		move.w	(a1)+,$30(a0)
 		move.w	(a1),d0
 		move.b	d0,mapping_frame(a0)
+
+FBZ2_DrawBossScenery:
+		tst.b	(Kos_modules_left).w	; wait for the scenery tiles to reach VRAM
+		bne.s	.wait
 		jmp	(Draw_Sprite).l
+.wait:
+		rts
 ; ---------------------------------------------------------------------------
 Map_FBZ2Preboss:
 		include "Levels/FBZ/Misc Object Data/Map - Act 2 Preboss.asm"
@@ -149329,20 +149336,7 @@ loc_6FE6E:
 		bset	#5,$38(a0)
 		move.w	#$5F,$2E(a0)
 		move.l	#loc_6FF10,$34(a0)
-		lea	PLCKosM_FBZ2Subboss(pc),a6
-		move.w	(a6)+,d6
-
-loc_6FE94:
-		movea.l	(a6)+,a1
-		move.w	(a6)+,d2
-		jsr	(Queue_Kos_Module).l
-		dbf	d6,loc_6FE94
 		rts
-; ---------------------------------------------------------------------------
-PLCKosM_FBZ2Subboss: plrlistheader
-		plreq ArtTile_FBZCloud, ArtKosM_FBZCloud
-		plreq ArtTile_FBZBossPillar, ArtKosM_FBZBossPillar
-PLCKosM_FBZ2Subboss_End:
 ; ---------------------------------------------------------------------------
 
 loc_6FEB2:
