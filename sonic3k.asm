@@ -7830,7 +7830,7 @@ LevelLoop:
 		jsr	(Animate_Palette).l
 		jsr	(SpecialEvents).l
 		jsr	(Load_Sprites).l
-		jsr	(Process_Sprites).l
+		jsr	(ProcessLevelSprites_KnucklesFinale).l
 		tst.w	(Restart_level_flag).w
 		bne.w	Level
 		tst.b	(Knuckles_partner_pending).w
@@ -118959,9 +118959,9 @@ loc_58B9E:
 		movem.l	d7-a0/a2-a3,-(sp)
 		jsr	(sub_5B18E).l
 		movem.l	(sp)+,d7-a0/a2-a3
-		cmpi.b	#7,(Super_emerald_count).w
+		jsr	(Cheat_CmpSuperEmeralds).l
 		bhs.s	loc_58BBC
-		cmpi.b	#7,(Chaos_emerald_count).w
+		jsr	(Cheat_CmpChaosEmeralds).l
 		blo.s	loc_58C1A
 
 loc_58BBC:
@@ -119524,9 +119524,9 @@ loc_590D6:
 		addq.b	#4,routine(a0)
 
 loc_590E4:
-		cmpi.b	#7,(Super_emerald_count).w
+		jsr	(Cheat_CmpSuperEmeralds).l
 		bhs.s	loc_590F4
-		cmpi.b	#7,(Chaos_emerald_count).w
+		jsr	(Cheat_CmpChaosEmeralds).l
 		blo.s	loc_59146
 
 loc_590F4:
@@ -126067,7 +126067,7 @@ loc_5E936:
 		lea	ChildObjDat_6022E(pc),a2
 		jsr	(CreateChild1_Normal).l
 		lea	Pal_EndingSmallPlane(pc),a1
-		jmp	(PalLoad_Line1).l
+		jmp	(Ending_LoadKnucklesSmallPlanePalette).l
 ; ---------------------------------------------------------------------------
 
 loc_5E98A:
@@ -126093,7 +126093,7 @@ loc_5E9C2:
 		tst.b	(_unkFAA9).w
 		beq.s	locret_5E9E0
 		move.b	#$10,routine(a0)
-		move.b	#$1A,mapping_frame(a0)
+		jsr	(Ending_SetKnucklesDistantPlaneFrame).l
 		move.w	(_unkEE9C).w,d0
 		addi.w	#$448,d0
 		move.w	d0,y_pos(a0)
@@ -126269,7 +126269,7 @@ loc_5EB88:
 loc_5EB9E:
 		move.l	#Map_SonicPlaneEnding,mappings(a0)
 		move.w	#make_art_tile(ArtTile_Ending_PlaneExtra,0,1),art_tile(a0)
-		move.b	#$12,mapping_frame(a0)
+		jsr	(Ending_SelectKnucklesLargePlanePilot).l
 		rts
 ; ---------------------------------------------------------------------------
 
@@ -126396,7 +126396,7 @@ loc_5ECFC:
 		addq.b	#1,d0
 
 loc_5ED06:
-		move.b	byte_5ED0E(pc,d0.w),mapping_frame(a0)
+		jsr	(Ending_SelectPlaneRiderFrame).l
 		rts
 ; ---------------------------------------------------------------------------
 byte_5ED0E:
@@ -205006,6 +205006,58 @@ Queue_Sandopolis_Background_DMA:
 		rts
 .queue:
 		jmp	(Add_To_DMA_Queue).l
+
+; Tails stays behind at the Hidden Palace teleporter and returns as the pilot.
+ProcessLevelSprites_KnucklesFinale:
+		cmpi.w	#$A01,(Current_zone_and_act).w
+		bne.s	.process
+		tst.b	(Knuckles_Tails_flag).w
+		beq.s	.process
+		clr.b	(Knuckles_partner_pending).w
+		tst.l	(Player_2).w			; older save states can already have Tails
+		beq.s	.process
+		clr.l	(Player_2).w
+		clr.l	(Tails_tails).w
+		clr.l	(Dust_P2).w
+.process:
+		jmp	(Process_Sprites).l
+
+; The rider table alternates between the pilot and the passenger.
+Ending_SelectPlaneRiderFrame:
+		cmpi.w	#6,d0				; first entry in the Knuckles ending
+		blo.s	.original
+		btst	#0,d0				; passenger?
+		bne.s	.original
+		tst.b	(Knuckles_Tails_flag).w
+		beq.s	.original
+		move.b	#$C,mapping_frame(a0)		; reuse Tails' cockpit sprite
+		rts
+.original:
+		lea	(byte_5ED0E).l,a1
+		move.b	(a1,d0.w),mapping_frame(a0)
+		rts
+
+Ending_SelectKnucklesLargePlanePilot:
+		tst.b	(Knuckles_Tails_flag).w
+		bne.s	.tails
+		move.b	#$12,mapping_frame(a0)		; Sonic in the large cockpit
+		rts
+.tails:
+		jmp	(loc_5EB72).l			; Tails in Sonic's large plane scene
+
+Ending_LoadKnucklesSmallPlanePalette:
+		jsr	(PalLoad_Line1).l
+		bra.s	Ending_ColorKnucklesSmallPlanePilot
+
+Ending_SetKnucklesDistantPlaneFrame:
+		move.b	#$1A,mapping_frame(a0)
+		; The scene can reload the palette between the two distant shots.
+Ending_ColorKnucklesSmallPlanePilot:
+		tst.b	(Knuckles_Tails_flag).w
+		beq.s	.return
+		move.l	#$00AE046A,(Normal_palette_line_2+4).w	; only the pilot uses colors 2 and 3
+.return:
+		rts
 
 		include "_debug/Debugger blob.asm"
 EndOfROM:
