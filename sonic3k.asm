@@ -56035,13 +56035,13 @@ AnimateTiles_SOZ1:
 		move.w	(a4)+,d3
 		add.w	d3,d4
 		add.w	d3,d4
-		jsr	(Add_To_DMA_Queue).l
+		jsr	(Queue_Sandopolis_Background_DMA).l
 		move.l	d5,d1
 		add.l	a0,d1
 		move.w	d4,d2
 		move.w	(a4)+,d3
 		beq.s	loc_28236
-		jsr	(Add_To_DMA_Queue).l
+		jsr	(Queue_Sandopolis_Background_DMA).l
 
 loc_28236:
 		moveq	#0,d1
@@ -56054,7 +56054,7 @@ loc_28236:
 		add.l	a0,d1
 		move.w	#tiles_to_bytes($33C),d2
 		move.w	#$60,d3
-		jsr	(Add_To_DMA_Queue).l
+		jsr	(Queue_Sandopolis_Background_DMA).l
 
 locret_2825A:
 		rts
@@ -56091,7 +56091,7 @@ loc_28294:
 		add.l	a0,d1
 		move.w	#$6600,d2
 		move.w	#$60,d3
-		jsr	(Add_To_DMA_Queue).l
+		jsr	(Queue_Sandopolis_Background_DMA).l
 
 locret_282B2:
 		rts
@@ -204979,6 +204979,34 @@ EndOfROM:
 		include "Lockon S3/LockOn Pointers.asm"
 	else
 		include "Lockon S3/LockOn Data.asm"
+
+; Split a Sandopolis background upload if the VDP's source counter
+; would wrap at a 128 KiB boundary. Keep this after the graphics so
+; adding the routine does not move any other DMA sources.
+Queue_Sandopolis_Background_DMA:
+		move.l	d1,d0
+		lsr.l	#1,d0
+		neg.w	d0				; words remaining in this bank
+		beq.s	.queue				; source is at the start of a bank
+		cmp.w	d0,d3
+		bls.s	.queue
+		movem.l	d1-d3,-(sp)
+		move.w	d0,d3
+		jsr	(Add_To_DMA_Queue).l
+		moveq	#0,d0
+		move.w	d3,d0
+		movem.l	(sp),d1-d3
+		sub.w	d0,d3
+		add.l	d0,d0
+		add.l	d0,d1
+		add.w	d0,d2
+		jsr	(Add_To_DMA_Queue).l
+		addq.l	#4,sp
+		movem.l	(sp)+,d2-d3
+		rts
+.queue:
+		jmp	(Add_To_DMA_Queue).l
+
 		include "_debug/Debugger blob.asm"
 EndOfROM:
 		if ErrorHandler_End<>EndOfROM
