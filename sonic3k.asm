@@ -122061,8 +122061,8 @@ loc_5AB66:
 
 loc_5AB6E:
 		jsr	sub_5AEEA(pc)
-		cmpi.b	#7,(Chaos_emerald_count).w
-		blo.s	loc_5AB96
+		cmpi.b	#0,(_unkFA88).w		; use the ending tier selected by sub_5FE82
+		bmi.s	loc_5AB96
 		moveq	#0,d0
 		move.w	(Events_bg+$06).w,d0
 		addi.w	#$10,d0
@@ -122097,8 +122097,8 @@ loc_5ABC0:
 		bpl.w	loc_5AEE4
 		clearRAM	Sprite_table_input,(Sprite_table_input_end-Sprite_table_input)
 		clearRAM	Player_2,(Kos_decomp_buffer-Player_2)-2
-		cmpi.b	#7,(Super_emerald_count).w
-		bhs.s	loc_5AC04
+		cmpi.b	#0,(_unkFA88).w		; the Super Emerald ending includes the AIZ scene
+		bgt.s	loc_5AC04
 		move.w	#$24,(Events_routine_fg).w
 		bra.w	loc_5ADC0
 ; ---------------------------------------------------------------------------
